@@ -1,0 +1,31 @@
+# Environment Variables & Secrets
+.env
+.env.local
+.env.*.local
+
+# Go Binaries & Artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+bin/
+dist/
+
+# Web / Frontend Dependencies & Build Output
+web/node_modules/
+web/dist/
+.pnpm-debug.log*
+
+# IDE & Editor Files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log

@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  backend:
+    name: Go Backend Test & Vet
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+      - name: Run Go Vet
+        run: go vet ./...
+      - name: Run Go Unit Tests
+        run: go test -v -race ./pkg/...
+
+  frontend:
+    name: Web Frontend Test & Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          cache-dependency-path: 'web/pnpm-lock.yaml'
+      - name: Install Dependencies
+        run: cd web && pnpm install --frozen-lockfile
+      - name: Run Linter
+        run: cd web && pnpm run lint
+      - name: Run Unit Tests
+        run: cd web && pnpm test
+      - name: Production Build
+        run: cd web && pnpm run build

@@ -1,0 +1,111 @@
+package proxy
+
+import (
+	"encoding/json"
+	"net/http"
+	"sukami/pkg/optimizer"
+)
+
+// PlaygroundRequest represents request payload for interactive testing.
+type PlaygroundRequest struct {
+	Prompt string `json:"prompt"`
+}
+
+// HandlePlayground allows real-time interactive testing of token optimization.
+func (h *Handler) HandlePlayground(w http.ResponseWriter, r *http.Request) {
+	var req PlaygroundRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+
+	origTokens := optimizer.EstimateTokens(req.Prompt)
+	pruned := optimizer.PruneText(req.Prompt)
+	optTokens := optimizer.EstimateTokens(pruned)
+	saved := origTokens - optTokens
+	if saved < 0 {
+		saved = 0
+		optTokens = origTokens
+	}
+
+	pct := 0.0
+	if origTokens > 0 {
+		pct = (float64(saved) / float64(origTokens)) * 100.0
+	}
+
+	origIDs := optimizer.EncodeToTokenIDs("gpt-4o", req.Prompt)
+	optIDs := optimizer.EncodeToTokenIDs("gpt-4o", pruned)
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"tokenizer":           "Pure Go Stdlib Engine (Zero Third-Party)",
+		"original_text":       req.Prompt,
+		"optimized_text":      pruned,
+		"original_tokens":     origTokens,
+		"optimized_tokens":    optTokens,
+		"saved_tokens":        saved,
+		"savings_percent":     pct,
+		"original_token_ids":  origIDs,
+		"optimized_token_ids": optIDs,
+	})
+}
+
+// HandleModels returns standard OpenAI-compatible models list.
+func (h *Handler) HandleModels(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]any{
+		"object": "list",
+		"data": []map[string]any{
+			{"id": "gpt-4o", "object": "model", "owned_by": "openai"},
+			{"id": "gpt-4o-mini", "object": "model", "owned_by": "openai"},
+			{"id": "gpt-4-turbo", "object": "model", "owned_by": "openai"},
+			{"id": "claude-3-5-sonnet", "object": "model", "owned_by": "anthropic"},
+			{"id": "gemini-1.5-flash", "object": "model", "owned_by": "google"},
+		},
+	})
+}
+
+// HandleMetrics returns operational metrics for the dashboard.
+func (h *Handler) HandleMetrics(w http.ResponseWriter, r *http.Request) {
+	summary := h.tracker.GetSummary()
+	writeJSON(w, http.StatusOK, summary)
+}
+
+// HandleListKeys returns all registered tenant API keys.
+func (h *Handler) HandleListKeys(w http.ResponseWriter, r *http.Request) {
+	keys := h.authStore.ListKeys()
+	writeJSON(w, http.StatusOK, keys)
+}
+
+// CreateKeyRequest represents incoming payload for new tenant key.
+type CreateKeyRequest struct {
+	Name string `json:"name"`
+	Tier string `json:"tier"`
+}
+
+// HandleCreateKey provisions a new tenant API key.
+func (h *Handler) HandleCreateKey(w http.ResponseWriter, r *http.Request) {
+	var req CreateKeyRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	key, err := h.authStore.CreateKey(req.Name, req.Tier)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, key)
+}
+
+// HandleDeleteKey revokes an API key.
+func (h *Handler) HandleDeleteKey(w http.ResponseWriter, r *http.Request) {
+	key := r.URL.Query().Get("key")
+	if key == "" {
+		writeError(w, http.StatusBadRequest, "Missing key query parameter")
+		return
+	}
+
+	revoked := h.authStore.RevokeKey(key)
+	writeJSON(w, http.StatusOK, map[string]any{"revoked": revoked})
+}
