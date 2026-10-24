@@ -102,6 +102,16 @@ func (c *MemoryCache) GetSemantic(model, prompt string, threshold float64) ([]by
 			continue
 		}
 
+		// Prevent false-positive collisions on distinct tech entities (e.g. Docker vs Kubernetes)
+		if HasEntityConflict(entry.PromptText, prompt) {
+			continue
+		}
+
+		// Require key-term overlap to prevent boilerplate prompt inflation
+		if KeyTermJaccardOverlap(entry.PromptText, prompt) < 0.40 {
+			continue
+		}
+
 		sim := CosineSimilarity(queryVec, entry.Vector)
 		if sim > highestSimilarity && sim >= threshold {
 			highestSimilarity = sim

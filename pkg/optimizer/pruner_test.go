@@ -90,21 +90,30 @@ func TestOptimizeMessages_RealWorldDataset(t *testing.T) {
 	}
 }
 
-// TestSplitIntoTokens verifies pure Go stdlib token segmentation.
-func TestSplitIntoTokens(t *testing.T) {
+// TestCountExactTokens_TiktokenBPE verifies OpenAI BPE token counting.
+func TestCountExactTokens_TiktokenBPE(t *testing.T) {
 	text := "Hello, world! 123"
-	tokens := splitIntoTokens(text)
-
-	expected := []string{"Hello", ",", "world", "!", "123"}
-	if len(tokens) != len(expected) {
-		t.Fatalf("Expected %d tokens, got %d (%v)", len(expected), len(tokens), tokens)
+	count := CountExactTokens("gpt-4o", text)
+	// In OpenAI BPE (o200k_base / cl100k_base), "Hello, world! 123" is 6 tokens
+	if count != 6 {
+		t.Fatalf("Expected 6 BPE tokens, got %d", count)
 	}
 
-	for i, exp := range expected {
-		if tokens[i] != exp {
-			t.Errorf("Token %d mismatch: expected %q, got %q", i, exp, tokens[i])
-		}
+	// Empty text must yield 0
+	if CountExactTokens("gpt-4o", "") != 0 {
+		t.Errorf("Expected 0 tokens for empty string")
 	}
+}
+
+// TestEncodeToTokenIDs_TiktokenBPE verifies real BPE token integer generation.
+func TestEncodeToTokenIDs_TiktokenBPE(t *testing.T) {
+	text := "Hello world"
+	ids := EncodeToTokenIDs("gpt-4o", text)
+	if len(ids) == 0 {
+		t.Fatalf("Expected non-empty token IDs from tiktoken")
+	}
+	// "Hello world" in cl100k_base is [9906, 1917]
+	t.Logf("Token IDs for %q: %v", text, ids)
 }
 
 // BenchmarkPruneText measures execution speed of prompt pruning.

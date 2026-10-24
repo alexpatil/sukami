@@ -81,4 +81,57 @@ func TestMemoryCache_GetSemantic_EndToEnd(t *testing.T) {
 	if hitOpposite {
 		t.Fatalf("Dangerous opposite action caused False Positive! It should have been rejected.")
 	}
+
+	// 3. Technical entity collision (Docker vs Kubernetes) must MISS despite identical surrounding boilerplate
+	dockerPrompt := "Please give me a complete guide on how to setup and configure Docker on Ubuntu 22.04 server"
+	k8sPrompt := "Please give me a complete guide on how to setup and configure Kubernetes on Ubuntu 22.04 server"
+	c.SetSemantic(ComputeHash("gpt-4o", dockerPrompt), dockerPrompt, []byte("Docker response"), "gpt-4o")
+	_, hitCollision, _ := c.GetSemantic("gpt-4o", k8sPrompt, 0.80)
+	if hitCollision {
+		t.Fatalf("Entity collision occurred! Docker cached response was wrongly served for Kubernetes query.")
+	}
+}
+
+// TestHasEntityConflict verifies domain entity conflict detection.
+func TestHasEntityConflict(t *testing.T) {
+	testCases := []struct {
+		name     string
+		textA    string
+		textB    string
+		conflict bool
+	}{
+		{
+			name:     "Containers: Docker vs Kubernetes",
+			textA:    "How to install Docker on Ubuntu",
+			textB:    "How to install Kubernetes on Ubuntu",
+			conflict: true,
+		},
+		{
+			name:     "Databases: Postgres vs MySQL",
+			textA:    "Connect to PostgreSQL in Go",
+			textB:    "Connect to MySQL in Go",
+			conflict: true,
+		},
+		{
+			name:     "Languages: Python vs Ruby",
+			textA:    "How to read a file in Python line by line",
+			textB:    "How to read a file in Ruby line by line",
+			conflict: true,
+		},
+		{
+			name:     "Same technology with synonyms: Golang vs Go",
+			textA:    "How to format strings in Go",
+			textB:    "How to format strings in Golang",
+			conflict: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := HasEntityConflict(tc.textA, tc.textB)
+			if got != tc.conflict {
+				t.Errorf("[%s] Expected conflict=%v, got=%v", tc.name, tc.conflict, got)
+			}
+		})
+	}
 }
