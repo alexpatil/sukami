@@ -66,11 +66,12 @@ from openai import OpenAI
 
 client = OpenAI(
     base_url="http://localhost:8080/v1",
-    api_key="your-api-key"  # OpenAI, Groq, or OpenRouter key
+    api_key="your-api-key",  # OpenAI, Groq, or OpenRouter API key
+    default_headers={"X-Provider": "groq"}  # Optional: switch to groq, openrouter, deepseek, ollama
 )
 
 response = client.chat.completions.create(
-    model="gpt-4o",
+    model="llama-3.3-70b-versatile",  # Or gpt-4o, claude-3.5-sonnet, etc.
     messages=[{"role": "user", "content": "Explain raft consensus in 3 bullet points"}]
 )
 print(response.choices[0].message.content)
@@ -82,11 +83,12 @@ import OpenAI from "openai";
 
 const client = new OpenAI({
   baseURL: "http://localhost:8080/v1",
-  apiKey: process.env.OPENAI_API_KEY,
+  apiKey: process.env.GROQ_API_KEY,
+  defaultHeaders: { "X-Provider": "groq" }, // Optional: dynamic provider routing
 });
 
 const response = await client.chat.completions.create({
-  model: "gpt-4o",
+  model: "llama-3.3-70b-versatile",
   messages: [{ role: "user", content: "Explain raft consensus in 3 bullet points" }],
 });
 ```
@@ -94,10 +96,11 @@ const response = await client.chat.completions.create({
 ### cURL
 ```bash
 curl http://localhost:8080/v1/chat/completions \
-  -H "Authorization: Bearer $OPENAI_API_KEY" \
+  -H "Authorization: Bearer $GROQ_API_KEY" \
+  -H "X-Provider: groq" \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "gpt-4o",
+    "model": "llama-3.3-70b-versatile",
     "messages": [{"role": "user", "content": "Explain raft consensus in 3 bullet points"}]
   }'
 ```
