@@ -16,6 +16,7 @@
 [Quickstart](#-quickstart-in-30-seconds) •
 [Integration](#-1-line-drop-in-integration) •
 [Architecture](#-architecture) •
+[Contributing](CONTRIBUTING.md) •
 [Technical Documentation](docs/ARCHITECTURE.md)
 
 </div>
@@ -158,6 +159,16 @@ go vet ./...
 # Build standalone production binary
 go build -o bin/sukami ./cmd/sukami
 ```
+
+---
+
+## 🤝 Contributing
+
+We welcome community contributions! Please review our [Contributing Guidelines](CONTRIBUTING.md) and [Code of Conduct](CODE_OF_CONDUCT.md) before submitting a pull request.
+
+- Check out our [Open Issues](https://github.com/alexpatil/sukami/issues)
+- Review the [Architecture Documentation](docs/ARCHITECTURE.md)
+- Adhere to the strict **250 lines per file** limit and zero-bloat philosophy.
 
 ---
 
