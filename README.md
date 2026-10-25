@@ -157,7 +157,7 @@ Have questions, feedback, or ideas? Reach out:
 
 - **Bug Reports & Features**: Open an [Issue](https://github.com/alexpatil/sukami/issues)
 - **Discussions & Feedback**: Join our [GitHub Discussions](https://github.com/alexpatil/sukami/discussions)
-- **Maintainer**: Ganesh Shinde ([codingpenin@gmail.com](mailto:codingpenin@gmail.com))
+- **Maintainer**: Alex Patil ([@alexpatil](https://github.com/alexpatil) • [codingpenin@gmail.com](mailto:codingpenin@gmail.com))
 
 ---
 
