@@ -29,16 +29,13 @@ func ApplyOutputOptimization(messages []models.ChatMessage) ([]models.ChatMessag
 
 	for _, msg := range messages {
 		if msg.Role == "system" && !systemFound {
-			// Append directive to existing system prompt
-			enhancedContent := msg.Content
-			if !strings.Contains(enhancedContent, "Output Policy:") {
-				enhancedContent = enhancedContent + "\n\n" + OutputDensityDirective
+			// Copy all fields, then modify content to include output density directive
+			enhanced := msg
+			if !strings.Contains(msg.Content, "Output Policy:") {
+				enhanced.Content = msg.Content + "\n\n" + OutputDensityDirective
+				enhanced.RawContent = nil // Force marshal to use modified Content
 			}
-			result = append(result, models.ChatMessage{
-				Role:    msg.Role,
-				Name:    msg.Name,
-				Content: enhancedContent,
-			})
+			result = append(result, enhanced)
 			systemFound = true
 		} else {
 			result = append(result, msg)

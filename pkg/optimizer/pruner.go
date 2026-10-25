@@ -1,6 +1,7 @@
 package optimizer
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 	"sukami/pkg/models"
@@ -38,14 +39,30 @@ type CompressionResult struct {
 	Messages        []models.ChatMessage
 }
 
-// EstimateTokens calculates the exact BPE token count for a text string using OpenAI tiktoken.
+// EstimateTokens calculates the token count for a text string in pure Go (defaults to gpt-4o).
 func EstimateTokens(text string) int {
-	return CountExactTokens("gpt-4o", text)
+	return EstimateTokensForModel("gpt-4o", text)
 }
 
-// EstimateMessagesTokens computes 100% exact token count across all chat messages.
+// EstimateTokensForModel calculates the model-aware token count in pure Go.
+func EstimateTokensForModel(model, text string) int {
+	if model == "" {
+		model = "gpt-4o"
+	}
+	return CountExactTokens(model, text)
+}
+
+// EstimateMessagesTokens computes token count across all chat messages (defaults to gpt-4o).
 func EstimateMessagesTokens(messages []models.ChatMessage) int {
-	return CountExactMessagesTokens("gpt-4o", messages)
+	return EstimateMessagesTokensForModel("gpt-4o", messages)
+}
+
+// EstimateMessagesTokensForModel computes exact token count using model-specific tokenization rules.
+func EstimateMessagesTokensForModel(model string, messages []models.ChatMessage) int {
+	if model == "" {
+		model = "gpt-4o"
+	}
+	return CountExactMessagesTokens(model, messages)
 }
 
 // PruneText compresses prompt text without corrupting code or essential semantics.
@@ -56,12 +73,11 @@ func PruneText(input string) string {
 
 	// Step 1: Protect code blocks
 	var preservedBlocks []string
-	placeholderPattern := "__CODE_BLOCK_%d__"
 
 	cleanText := codeBlockRegex.ReplaceAllStringFunc(input, func(block string) string {
 		idx := len(preservedBlocks)
 		preservedBlocks = append(preservedBlocks, block)
-		return strings.Replace(placeholderPattern, "%d", string(rune('0'+idx)), 1)
+		return fmt.Sprintf("__CODE_BLOCK_%d__", idx)
 	})
 
 	// Step 2: Remove leading conversational filler from lines and sentences
@@ -88,27 +104,33 @@ func PruneText(input string) string {
 
 	// Step 4: Restore preserved code blocks intact
 	for idx, block := range preservedBlocks {
-		placeholder := strings.Replace(placeholderPattern, "%d", string(rune('0'+idx)), 1)
+		placeholder := fmt.Sprintf("__CODE_BLOCK_%d__", idx)
 		cleanText = strings.Replace(cleanText, placeholder, block, 1)
 	}
 
 	return cleanText
 }
 
-// OptimizeMessages processes the slice of chat messages and returns pruned messages with stats.
+// OptimizeMessages processes chat messages using default model tokenization.
 func OptimizeMessages(messages []models.ChatMessage) CompressionResult {
-	origTokens := EstimateMessagesTokens(messages)
+	return OptimizeMessagesForModel("gpt-4o", messages)
+}
+
+// OptimizeMessagesForModel processes the slice of chat messages using model-specific token rules.
+// Multimodal messages (image arrays) are passed through untouched; only text content is pruned.
+func OptimizeMessagesForModel(model string, messages []models.ChatMessage) CompressionResult {
+	origTokens := EstimateMessagesTokensForModel(model, messages)
 
 	optimized := make([]models.ChatMessage, len(messages))
 	for i, msg := range messages {
-		optimized[i] = models.ChatMessage{
-			Role:    msg.Role,
-			Name:    msg.Name,
-			Content: PruneText(msg.Content),
+		optimized[i] = msg // Copy all fields including passthrough (ToolCalls, RawContent, etc.)
+		if models.IsTextContent(msg.RawContent) {
+			optimized[i].Content = PruneText(msg.Content)
+			optimized[i].RawContent = nil // Force marshal to use pruned text Content
 		}
 	}
 
-	optTokens := EstimateMessagesTokens(optimized)
+	optTokens := EstimateMessagesTokensForModel(model, optimized)
 	saved := origTokens - optTokens
 	if saved < 0 {
 		saved = 0
