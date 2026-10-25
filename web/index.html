@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sukami AI • Developer Gateway & Token Optimizer</title>
+  <title>Sukami AI • Multi-Provider Gateway & Token Optimizer</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -195,7 +195,76 @@
       max-width: 650px;
     }
 
-    /* Playground / Sandbox */
+    /* Provider Selector Bar */
+    .provider-bar {
+      display: grid;
+      grid-template-columns: 1fr 1.3fr 1.3fr;
+      gap: 16px;
+      background: rgba(3, 7, 18, 0.75);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 20px;
+      align-items: flex-end;
+    }
+
+    @media (max-width: 900px) {
+      .provider-bar {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .field-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .form-control {
+      background: #0f172a;
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 9px 12px;
+      color: #fff;
+      font-size: 0.85rem;
+      font-family: inherit;
+      outline: none;
+      width: 100%;
+      transition: border-color 0.2s;
+    }
+
+    .form-control:focus {
+      border-color: var(--primary);
+    }
+
+    .btn-fetch {
+      background: rgba(56, 189, 248, 0.12);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      color: var(--primary);
+      font-weight: 600;
+      font-size: 0.8rem;
+      padding: 9px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+
+    .btn-fetch:hover {
+      background: rgba(56, 189, 248, 0.22);
+    }
+
+    /* Sandbox */
     .sandbox-textarea {
       width: 100%;
       background: rgba(3, 7, 18, 0.85);
@@ -207,7 +276,7 @@
       font-size: 0.9rem;
       line-height: 1.6;
       resize: vertical;
-      min-height: 100px;
+      min-height: 90px;
       outline: none;
       transition: border-color 0.2s;
     }
@@ -240,6 +309,25 @@
     }
 
     .btn-primary:hover {
+      opacity: 0.9;
+    }
+
+    .btn-execute {
+      background: linear-gradient(135deg, #059669, #10b981);
+      color: #030712;
+      font-weight: 600;
+      font-size: 0.85rem;
+      padding: 10px 18px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: opacity 0.2s;
+    }
+
+    .btn-execute:hover {
       opacity: 0.9;
     }
 
@@ -311,6 +399,7 @@
       padding: 12px;
       border-radius: 6px;
       border: 1px solid rgba(255, 255, 255, 0.04);
+      white-space: pre-wrap;
     }
 
     /* Integration Code Tabs */
@@ -460,7 +549,7 @@
         <div class="brand-icon">S</div>
         <div class="brand-text">
           <h1>Sukami Gateway</h1>
-          <p>Open-Source AI Token Optimization & Reverse Proxy</p>
+          <p>Multi-Provider AI Token Optimization & Dynamic Reverse Proxy</p>
         </div>
       </div>
       <div>
@@ -486,7 +575,7 @@
       <div class="metric-card">
         <div class="metric-label">Estimated Cost Saved</div>
         <div class="metric-value" id="val-cost">$0.00</div>
-        <div class="metric-sub">Computed against GPT-4o benchmarks</div>
+        <div class="metric-sub">Computed against active models</div>
       </div>
       <div class="metric-card">
         <div class="metric-label">Semantic Cache Hit Rate</div>
@@ -495,23 +584,66 @@
       </div>
     </div>
 
-    <!-- Live Optimizer Sandbox -->
+    <!-- Live Multi-Provider Sandbox -->
     <div class="section-card">
       <div class="section-header">
         <div>
-          <div class="section-title">⚡ Interactive Token Optimizer Sandbox</div>
+          <div class="section-title">⚡ Multi-Provider Optimization Sandbox</div>
           <p class="section-desc">
-            Test prompt compression live. Sukami removes conversational fluff, collapses unnecessary formatting, preserves code blocks, and calculates exact OpenAI Byte-Pair Encoding (BPE) savings.
+            Select an upstream provider, supply an API key to fetch live models into memory, and evaluate real-time token optimization.
           </p>
         </div>
         <button class="btn-secondary" onclick="loadSamplePrompt()">Load Sample Prompt</button>
       </div>
 
+      <!-- Step 1: Provider & Model Selector Row -->
+      <div class="provider-bar">
+        <div class="field-group">
+          <label class="field-label">1. Upstream Provider</label>
+          <select id="provider-select" class="form-control" onchange="onProviderChange()">
+            <option value="openrouter">OpenRouter (300+ Unified Models)</option>
+            <option value="groq">Groq Cloud (Ultra-Fast)</option>
+            <option value="openai">OpenAI Official</option>
+            <option value="deepseek">DeepSeek Official</option>
+            <option value="ollama">Ollama / Local vLLM</option>
+            <option value="custom">Custom Endpoint...</option>
+          </select>
+        </div>
+
+        <div class="field-group" id="group-api-key">
+          <label class="field-label">
+            <span>2. Provider API Key</span>
+            <span id="key-saved-hint" style="color: var(--success); font-weight: normal; display: none;">Saved in memory ✓</span>
+          </label>
+          <div style="display: flex; gap: 8px;">
+            <input type="password" id="provider-key-input" class="form-control" placeholder="Paste API key..." oninput="onKeyInput()" />
+            <button class="btn-fetch" id="btn-fetch-models" onclick="fetchProviderModels()">Fetch Models ↻</button>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label class="field-label">
+            <span>3. Active Model</span>
+            <span id="model-count-label" style="color: var(--primary); text-transform: none;">Popular Models</span>
+          </label>
+          <select id="model-select" class="form-control" onchange="onModelChange()">
+            <!-- Populated dynamically -->
+          </select>
+        </div>
+      </div>
+
+      <!-- Optional Custom URL Bar -->
+      <div id="custom-url-row" style="display: none; margin-bottom: 16px; background: rgba(3, 7, 18, 0.75); border: 1px solid var(--card-border); border-radius: 10px; padding: 12px 16px;">
+        <label class="field-label" style="margin-bottom: 6px;">Custom Base URL (OpenAI-Compatible Endpoint)</label>
+        <input type="text" id="custom-url-input" class="form-control" placeholder="http://localhost:11434/v1" oninput="onCustomUrlInput()" />
+      </div>
+
       <textarea id="prompt-input" class="sandbox-textarea" placeholder="Type or paste any prompt to analyze token savings...">Could you please kindly help me write a function in Go that connects to PostgreSQL and downloads records concurrently? Please make sure to handle errors properly and include inline comments. Thank you so much!</textarea>
 
       <div class="sandbox-actions">
-        <button class="btn-primary" onclick="testOptimize()">⚡ Optimize Prompt</button>
-        <span style="font-size: 0.8rem; color: var(--text-muted);">Zero API keys required • Computed locally via Go engine</span>
+        <button class="btn-primary" onclick="testOptimize()">⚡ Test BPE Pruning</button>
+        <button class="btn-execute" onclick="executeLiveRequest()">🚀 Execute Live Call</button>
+        <span id="execution-status" style="font-size: 0.8rem; color: var(--text-muted);">Routes dynamically to selected provider</span>
       </div>
 
       <div id="sandbox-result" class="sandbox-result">
@@ -519,8 +651,9 @@
           <span class="stat-pill">Original: <strong id="res-orig">-</strong> tokens</span>
           <span class="stat-pill">Optimized: <strong id="res-opt">-</strong> tokens</span>
           <span class="stat-pill pill-saved" id="res-saved">+0 tokens saved (0.0%)</span>
+          <span class="stat-pill" id="res-mode" style="color: var(--primary);">Local BPE Test</span>
         </div>
-        <div style="font-size: 0.75rem; text-transform: uppercase; font-weight: 600; color: var(--text-muted); margin-bottom: 6px;">Pruned Prompt:</div>
+        <div style="font-size: 0.75rem; text-transform: uppercase; font-weight: 600; color: var(--text-muted); margin-bottom: 6px;" id="res-label">Optimized Output:</div>
         <div class="result-text" id="res-text"></div>
       </div>
     </div>
@@ -530,7 +663,7 @@
       <div class="section-header">
         <div>
           <div class="section-title">📊 Live Traffic Inspector</div>
-          <p class="section-desc">Real-time log of chat completions routed through the local proxy.</p>
+          <p class="section-desc">Real-time telemetry of chat completions routed across upstream providers.</p>
         </div>
       </div>
 
@@ -564,7 +697,7 @@
         <div>
           <div class="section-title">🔌 1-Line Drop-In Integration</div>
           <p class="section-desc">
-            Sukami is a transparent OpenAI-compatible proxy. Simply redirect your client's <code>base_url</code> to begin saving tokens immediately.
+            Point your client's <code>base_url</code> to Sukami. Sukami automatically routes, optimizes prompts, and caches responses across providers.
           </p>
         </div>
       </div>
@@ -588,49 +721,236 @@
   </div>
 
   <script>
-    const snippets = {
-      python: `from openai import OpenAI
-
-# 1. Point your client to Sukami Gateway (Port 8080)
-client = OpenAI(
-    base_url="http://localhost:8080/v1",
-    api_key="sk-proj-your-openai-or-groq-key"  # Or set in server .env
-)
-
-# 2. Call any model as normal — Sukami prunes prompts & caches responses automatically
-response = client.chat.completions.create(
-    model="gpt-4o",
-    messages=[{"role": "user", "content": "Explain distributed consensus in Go"}]
-)
-
-print(response.choices[0].message.content)`,
-
-      node: `import OpenAI from 'openai';
-
-// 1. Point your client to Sukami Gateway (Port 8080)
-const client = new OpenAI({
-  baseURL: 'http://localhost:8080/v1',
-  apiKey: process.env.OPENAI_API_KEY || 'sk-proj-your-api-key',
-});
-
-// 2. Call any model as normal
-const response = await client.chat.completions.create({
-  model: 'gpt-4o',
-  messages: [{ role: 'user', content: 'Explain distributed consensus in Go' }],
-});
-
-console.log(response.choices[0].message.content);`,
-
-      curl: `# 1. Send any standard OpenAI-compatible JSON payload to Sukami Gateway
-curl http://localhost:8080/v1/chat/completions \\
-  -H "Content-Type: application/json" \\
-  -H "Authorization: Bearer sk-proj-your-api-key" \\
-  -d '{
-    "model": "gpt-4o",
-    "messages": [{"role": "user", "content": "Explain distributed consensus in Go"}]
-  }'`
+    const providerDefaults = {
+      openrouter: {
+        url: 'https://openrouter.ai/api/v1',
+        models: [
+          { id: 'anthropic/claude-3.5-sonnet', name: 'Anthropic: Claude 3.5 Sonnet' },
+          { id: 'openai/gpt-4o', name: 'OpenAI: GPT-4o' },
+          { id: 'google/gemini-2.0-flash-exp:free', name: 'Google: Gemini 2.0 Flash (Free)' },
+          { id: 'deepseek/deepseek-chat', name: 'DeepSeek: DeepSeek-V3' },
+          { id: 'meta-llama/llama-3.3-70b-instruct', name: 'Meta: Llama 3.3 70B' }
+        ]
+      },
+      groq: {
+        url: 'https://api.groq.com/openai/v1',
+        models: [
+          { id: 'llama-3.3-70b-versatile', name: 'Llama 3.3 70B Versatile' },
+          { id: 'llama-3.1-8b-instant', name: 'Llama 3.1 8B Instant' },
+          { id: 'openai/gpt-oss-120b', name: 'GPT-OSS 120B' },
+          { id: 'mixtral-8x7b-32768', name: 'Mixtral 8x7B' }
+        ]
+      },
+      openai: {
+        url: 'https://api.openai.com/v1',
+        models: [
+          { id: 'gpt-4o', name: 'GPT-4o (Flagship)' },
+          { id: 'gpt-4o-mini', name: 'GPT-4o Mini (Ultra-Fast)' },
+          { id: 'gpt-4-turbo', name: 'GPT-4 Turbo' },
+          { id: 'o1-preview', name: 'o1 Reasoning Preview' }
+        ]
+      },
+      deepseek: {
+        url: 'https://api.deepseek.com',
+        models: [
+          { id: 'deepseek-chat', name: 'DeepSeek-V3 (Chat)' },
+          { id: 'deepseek-reasoner', name: 'DeepSeek-R1 (Reasoner)' }
+        ]
+      },
+      ollama: {
+        url: 'http://localhost:11434/v1',
+        models: [
+          { id: 'llama3:latest', name: 'Llama 3 (Local)' },
+          { id: 'mistral:latest', name: 'Mistral 7B (Local)' },
+          { id: 'qwen2.5-coder:latest', name: 'Qwen 2.5 Coder (Local)' }
+        ]
+      },
+      custom: {
+        url: 'http://localhost:11434/v1',
+        models: [
+          { id: 'default-model', name: 'Default Model' }
+        ]
+      }
     };
 
+    let activeProvider = 'openrouter';
+    let activeModel = 'anthropic/claude-3.5-sonnet';
+
+    function initProviderConfig() {
+      const savedProvider = localStorage.getItem('sukami_active_provider') || 'openrouter';
+      document.getElementById('provider-select').value = savedProvider;
+      onProviderChange();
+    }
+
+    function onProviderChange() {
+      activeProvider = document.getElementById('provider-select').value;
+      localStorage.setItem('sukami_active_provider', activeProvider);
+
+      const customRow = document.getElementById('custom-url-row');
+      if (activeProvider === 'custom') {
+        customRow.style.display = 'block';
+        const savedCustomUrl = localStorage.getItem('sukami_custom_url') || 'http://localhost:11434/v1';
+        document.getElementById('custom-url-input').value = savedCustomUrl;
+      } else {
+        customRow.style.display = 'none';
+      }
+
+      // Load saved key from localStorage memory
+      const savedKey = localStorage.getItem('sukami_key_' + activeProvider) || '';
+      document.getElementById('provider-key-input').value = savedKey;
+      document.getElementById('key-saved-hint').style.display = savedKey ? 'inline' : 'none';
+
+      // Load cached models or defaults
+      loadModelsForProvider(activeProvider);
+      updateCodeSnippets();
+    }
+
+    function onKeyInput() {
+      const key = document.getElementById('provider-key-input').value.trim();
+      if (key) {
+        localStorage.setItem('sukami_key_' + activeProvider, key);
+        document.getElementById('key-saved-hint').style.display = 'inline';
+      } else {
+        localStorage.removeItem('sukami_key_' + activeProvider);
+        document.getElementById('key-saved-hint').style.display = 'none';
+      }
+      updateCodeSnippets();
+    }
+
+    function onCustomUrlInput() {
+      const url = document.getElementById('custom-url-input').value.trim();
+      localStorage.setItem('sukami_custom_url', url);
+      updateCodeSnippets();
+    }
+
+    function onModelChange() {
+      activeModel = document.getElementById('model-select').value;
+      localStorage.setItem('sukami_model_' + activeProvider, activeModel);
+      updateCodeSnippets();
+    }
+
+    function loadModelsForProvider(prov) {
+      let models = [];
+      const cached = localStorage.getItem('sukami_models_' + prov);
+      if (cached) {
+        try {
+          models = JSON.parse(cached);
+          document.getElementById('model-count-label').innerText = `${models.length} Saved Models`;
+        } catch (e) {
+          models = [];
+        }
+      }
+
+      if (!models || models.length === 0) {
+        models = (providerDefaults[prov] && providerDefaults[prov].models) || providerDefaults.openrouter.models;
+        document.getElementById('model-count-label').innerText = 'Popular Models';
+      }
+
+      renderModelDropdown(models);
+    }
+
+    function renderModelDropdown(models) {
+      const select = document.getElementById('model-select');
+      const savedSelected = localStorage.getItem('sukami_model_' + activeProvider);
+
+      select.innerHTML = models.map(m => `
+        <option value="${m.id}" ${m.id === savedSelected ? 'selected' : ''}>
+          ${escapeHtml(m.name || m.id)} (${m.id})
+        </option>
+      `).join('');
+
+      activeModel = select.value || (models[0] && models[0].id) || 'gpt-4o';
+    }
+
+    async function fetchProviderModels() {
+      const btn = document.getElementById('btn-fetch-models');
+      const originalText = btn.innerText;
+      btn.innerText = 'Fetching...';
+      btn.disabled = true;
+
+      const key = document.getElementById('provider-key-input').value.trim();
+      const customUrl = activeProvider === 'custom' ? document.getElementById('custom-url-input').value.trim() : '';
+
+      try {
+        const res = await fetch('/api/models/fetch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            provider: activeProvider,
+            upstream_url: customUrl,
+            api_key: key
+          })
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error?.message || 'Failed to fetch models');
+        }
+
+        if (data.models && data.models.length > 0) {
+          localStorage.setItem('sukami_models_' + activeProvider, JSON.stringify(data.models));
+          renderModelDropdown(data.models);
+          document.getElementById('model-count-label').innerText = `${data.models.length} Live Models`;
+          alert(`Success: Fetched ${data.models.length} live models from ${activeProvider.toUpperCase()}!`);
+        } else {
+          alert('Provider returned 0 models. Check credentials.');
+        }
+      } catch (err) {
+        alert('Fetch Error: ' + err.message);
+      } finally {
+        btn.innerText = originalText;
+        btn.disabled = false;
+      }
+    }
+
+    function updateCodeSnippets() {
+      const key = document.getElementById('provider-key-input').value.trim() || 'sk-proj-your-api-key';
+      const model = activeModel || 'gpt-4o';
+      const providerHeader = activeProvider !== 'openai' ? `\n    default_headers={"X-Provider": "${activeProvider}"}` : '';
+
+      snippets.python = `from openai import OpenAI
+
+# Connect to local Sukami Gateway (Port 8080)
+client = OpenAI(
+    base_url="http://localhost:8080/v1",
+    api_key="${key}",${providerHeader}
+)
+
+response = client.chat.completions.create(
+    model="${model}",
+    messages=[{"role": "user", "content": "Explain distributed systems architecture"}]
+)
+
+print(response.choices[0].message.content)`;
+
+      const nodeHeaders = activeProvider !== 'openai' ? `\n  defaultHeaders: { 'X-Provider': '${activeProvider}' },` : '';
+      snippets.node = `import OpenAI from 'openai';
+
+const client = new OpenAI({
+  baseURL: 'http://localhost:8080/v1',
+  apiKey: '${key}',${nodeHeaders}
+});
+
+const response = await client.chat.completions.create({
+  model: '${model}',
+  messages: [{ role: 'user', content: 'Explain distributed systems architecture' }],
+});
+
+console.log(response.choices[0].message.content);`;
+
+      const curlHeader = activeProvider !== 'openai' ? ` \\\n  -H "X-Provider: ${activeProvider}"` : '';
+      snippets.curl = `curl http://localhost:8080/v1/chat/completions \\
+  -H "Content-Type: application/json" \\
+  -H "Authorization: Bearer ${key}"${curlHeader} \\
+  -d '{
+    "model": "${model}",
+    "messages": [{"role": "user", "content": "Explain distributed systems architecture"}]
+  }'`;
+
+      document.getElementById('code-snippet').innerText = snippets[currentTab];
+    }
+
+    const snippets = { python: '', node: '', curl: '' };
     let currentTab = 'python';
 
     function switchTab(tab) {
@@ -671,10 +991,75 @@ Please make sure to handle errors properly and kindly include inline comments ex
         document.getElementById('res-orig').innerText = data.original_tokens;
         document.getElementById('res-opt').innerText = data.optimized_tokens;
         document.getElementById('res-saved').innerText = `+${data.saved_tokens} tokens saved (${data.savings_percent.toFixed(1)}%)`;
+        document.getElementById('res-mode').innerText = 'Local BPE Pruning';
+        document.getElementById('res-label').innerText = 'Pruned Prompt:';
         document.getElementById('res-text').innerText = data.optimized_text;
         document.getElementById('sandbox-result').classList.add('active');
       } catch (err) {
         alert("Optimization request error: " + err.message);
+      }
+    }
+
+    async function executeLiveRequest() {
+      const prompt = document.getElementById('prompt-input').value.trim();
+      if (!prompt) return;
+
+      const statusEl = document.getElementById('execution-status');
+      statusEl.innerText = `Connecting to ${activeProvider.toUpperCase()} (${activeModel})...`;
+      statusEl.style.color = 'var(--primary)';
+
+      const key = document.getElementById('provider-key-input').value.trim();
+      const customUrl = activeProvider === 'custom' ? document.getElementById('custom-url-input').value.trim() : '';
+
+      const headers = {
+        'Content-Type': 'application/json',
+        'X-Provider': activeProvider
+      };
+      if (key) {
+        headers['Authorization'] = 'Bearer ' + key;
+        headers['X-Upstream-Key'] = key;
+      }
+      if (customUrl) {
+        headers['X-Upstream-Url'] = customUrl;
+      }
+
+      const start = Date.now();
+      try {
+        const res = await fetch('/v1/chat/completions', {
+          method: 'POST',
+          headers: headers,
+          body: JSON.stringify({
+            model: activeModel,
+            messages: [{ role: 'user', content: prompt }]
+          })
+        });
+
+        const data = await res.json();
+        const latency = Date.now() - start;
+
+        if (!res.ok) {
+          throw new Error(data.error?.message || `HTTP ${res.status}`);
+        }
+
+        const reply = data.choices && data.choices[0] && data.choices[0].message ? data.choices[0].message.content : JSON.stringify(data, null, 2);
+        const prunedHeader = res.headers.get('X-Sukami-Pruned-Tokens') || '0';
+        const cacheHeader = res.headers.get('X-Cache') || 'MISS';
+
+        document.getElementById('res-orig').innerText = data.usage?.prompt_tokens || '~';
+        document.getElementById('res-opt').innerText = (data.usage?.prompt_tokens || 0) - parseInt(prunedHeader);
+        document.getElementById('res-saved').innerText = `+${prunedHeader} tokens pruned`;
+        document.getElementById('res-mode').innerText = `${activeProvider.toUpperCase()} • ${latency}ms • ${cacheHeader}`;
+        document.getElementById('res-label').innerText = `Model Reply (${activeModel}):`;
+        document.getElementById('res-text').innerText = reply;
+        document.getElementById('sandbox-result').classList.add('active');
+
+        statusEl.innerText = `Completed in ${latency}ms (${cacheHeader})`;
+        statusEl.style.color = 'var(--success)';
+        fetchMetrics();
+      } catch (err) {
+        statusEl.innerText = `Error: ${err.message}`;
+        statusEl.style.color = '#ef4444';
+        alert('Live Execution Error: ' + err.message);
       }
     }
 
@@ -715,7 +1100,7 @@ Please make sure to handle errors properly and kindly include inline comments ex
     }
 
     // Initialize
-    switchTab('python');
+    initProviderConfig();
     fetchMetrics();
     setInterval(fetchMetrics, 3000);
   </script>

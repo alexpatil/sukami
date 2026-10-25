@@ -152,3 +152,34 @@ func TestResolveUpstreamAuth(t *testing.T) {
 	}
 }
 
+func TestResolveUpstreamTarget(t *testing.T) {
+	h, _, _ := setupTestHandler()
+
+	// 1. Explicit X-Upstream-Url header
+	req1 := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+	req1.Header.Set("X-Upstream-Url", "https://openrouter.ai/api/v1")
+	if target := h.resolveUpstreamTarget(req1, "gpt-4o"); target != "https://openrouter.ai/api/v1/chat/completions" {
+		t.Errorf("expected OpenRouter target, got %s", target)
+	}
+
+	// 2. Explicit X-Provider header
+	req2 := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+	req2.Header.Set("X-Provider", "deepseek")
+	if target := h.resolveUpstreamTarget(req2, "deepseek-chat"); target != "https://api.deepseek.com/v1/chat/completions" {
+		t.Errorf("expected DeepSeek target, got %s", target)
+	}
+
+	// 3. Model prefix auto-routing
+	req3 := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+	if target := h.resolveUpstreamTarget(req3, "openrouter/anthropic/claude-3.5-sonnet"); target != "https://openrouter.ai/api/v1/chat/completions" {
+		t.Errorf("expected OpenRouter target from model prefix, got %s", target)
+	}
+
+	// 4. Default server fallback
+	req4 := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+	if target := h.resolveUpstreamTarget(req4, "gpt-4o"); target != "https://api.groq.com/openai/v1/chat/completions" {
+		t.Errorf("expected default Groq target, got %s", target)
+	}
+}
+
+
