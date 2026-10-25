@@ -77,27 +77,44 @@ func truncate(s string, maxLen int) string {
 	return clean[:maxLen] + "..."
 }
 
-func getEffectiveAuth(reqAuth string) string {
-	clean := strings.TrimSpace(strings.TrimPrefix(reqAuth, "Bearer "))
+// resolveSukamiKey extracts the Sukami tenant key from X-Sukami-Key or Authorization header.
+func resolveSukamiKey(r *http.Request) string {
+	if sukamiHeader := r.Header.Get("X-Sukami-Key"); sukamiHeader != "" {
+		return strings.TrimSpace(strings.TrimPrefix(sukamiHeader, "Bearer "))
+	}
+	rawAuth := r.Header.Get("Authorization")
+	clean := strings.TrimSpace(strings.TrimPrefix(rawAuth, "Bearer "))
 	if strings.HasPrefix(clean, "sk-sukami-") {
-		envKey := os.Getenv("OPENAI_API_KEY")
-		if envKey == "" {
-			envKey = os.Getenv("GROQ_API_KEY")
+		return clean
+	}
+	return ""
+}
+
+// resolveUpstreamAuth extracts the upstream provider authorization header.
+// It checks:
+// 1. Explicit upstream header: X-Upstream-Key, X-Provider-Key, or X-OpenAI-Api-Key.
+// 2. Direct provider key in Authorization (when not starting with sk-sukami-).
+// 3. Server environment fallback: OPENAI_API_KEY, GROQ_API_KEY, ANTHROPIC_API_KEY, DEEPSEEK_API_KEY, GEMINI_API_KEY.
+func resolveUpstreamAuth(r *http.Request) string {
+	// 1. Explicit upstream provider headers
+	for _, header := range []string{"X-Upstream-Key", "X-Provider-Key", "X-OpenAI-Api-Key"} {
+		if val := strings.TrimSpace(r.Header.Get(header)); val != "" {
+			return "Bearer " + strings.TrimPrefix(val, "Bearer ")
 		}
-		if envKey != "" {
-			return "Bearer " + envKey
+	}
+
+	// 2. Direct provider key in Authorization header (when client doesn't use sk-sukami- in Authorization)
+	reqAuth := strings.TrimSpace(r.Header.Get("Authorization"))
+	cleanAuth := strings.TrimPrefix(reqAuth, "Bearer ")
+	if cleanAuth != "" && !strings.HasPrefix(cleanAuth, "sk-sukami-") {
+		return "Bearer " + cleanAuth
+	}
+
+	// 3. Server environment fallback
+	for _, envVar := range []string{"OPENAI_API_KEY", "GROQ_API_KEY", "ANTHROPIC_API_KEY", "DEEPSEEK_API_KEY", "GEMINI_API_KEY"} {
+		if val := os.Getenv(envVar); val != "" {
+			return "Bearer " + val
 		}
-		return ""
-	}
-	if reqAuth != "" {
-		return reqAuth
-	}
-	envKey := os.Getenv("OPENAI_API_KEY")
-	if envKey == "" {
-		envKey = os.Getenv("GROQ_API_KEY")
-	}
-	if envKey != "" {
-		return "Bearer " + envKey
 	}
 	return ""
 }

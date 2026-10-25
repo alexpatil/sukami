@@ -12,6 +12,7 @@ export const Playground: React.FC = () => {
   const [isCompressing, setIsCompressing] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [apiResponse, setApiResponse] = useState<{ status: string; data: unknown } | null>(null);
+  const [customKey, setCustomKey] = useState<string>(() => localStorage.getItem('sukami_custom_upstream_key') || '');
 
   const estimateTokens = (text: string) => {
     if (!text.trim()) return 0;
@@ -48,9 +49,13 @@ export const Playground: React.FC = () => {
 
     try {
       setIsSending(true);
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (customKey.trim()) {
+        headers['X-Upstream-Key'] = customKey.trim();
+      }
       const res = await fetch('/v1/chat/completions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           model: 'gpt-4o',
           messages: [{ role: 'user', content: prompt.trim() }],
@@ -92,6 +97,41 @@ export const Playground: React.FC = () => {
         >
           Load Sample Prompt
         </button>
+      </div>
+
+      <div style={{ marginBottom: 16, display: 'flex', gap: 10, alignItems: 'center' }}>
+        <input
+          type="password"
+          placeholder="🔑 Optional: Upstream API Key (e.g. gsk_... or sk-proj-...) • Leave blank to use server .env"
+          value={customKey}
+          onChange={(e) => {
+            setCustomKey(e.target.value);
+            localStorage.setItem('sukami_custom_upstream_key', e.target.value);
+          }}
+          style={{
+            flex: 1,
+            background: 'rgba(15, 23, 42, 0.6)',
+            border: '1px solid rgba(255, 255, 255, 0.12)',
+            borderRadius: 8,
+            padding: '9px 14px',
+            color: '#f8fafc',
+            fontSize: '0.85rem',
+            fontFamily: 'monospace',
+          }}
+        />
+        {customKey.trim() && (
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => {
+              setCustomKey('');
+              localStorage.removeItem('sukami_custom_upstream_key');
+            }}
+            style={{ padding: '8px 14px', fontSize: '0.8rem' }}
+          >
+            Clear Key
+          </button>
+        )}
       </div>
 
       <div className="playground-layout">

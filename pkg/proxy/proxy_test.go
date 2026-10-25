@@ -98,3 +98,54 @@ func TestHandleMetrics_Summary(t *testing.T) {
 		t.Fatalf("failed to decode metrics summary: %v", err)
 	}
 }
+
+func TestResolveSukamiKey(t *testing.T) {
+	// Case 1: In Authorization header
+	req1 := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+	req1.Header.Set("Authorization", "Bearer sk-sukami-test1")
+	if key := resolveSukamiKey(req1); key != "sk-sukami-test1" {
+		t.Errorf("expected 'sk-sukami-test1', got '%s'", key)
+	}
+
+	// Case 2: In X-Sukami-Key header
+	req2 := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+	req2.Header.Set("X-Sukami-Key", "sk-sukami-header2")
+	if key := resolveSukamiKey(req2); key != "sk-sukami-header2" {
+		t.Errorf("expected 'sk-sukami-header2', got '%s'", key)
+	}
+
+	// Case 3: Direct provider key does NOT register as Sukami key
+	req3 := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+	req3.Header.Set("Authorization", "Bearer sk-proj-openai123")
+	if key := resolveSukamiKey(req3); key != "" {
+		t.Errorf("expected empty string for non-sukami key, got '%s'", key)
+	}
+}
+
+func TestResolveUpstreamAuth(t *testing.T) {
+	// Case 1: Explicit X-Upstream-Key
+	req1 := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+	req1.Header.Set("X-Upstream-Key", "sk-upstream-secret")
+	if auth := resolveUpstreamAuth(req1); auth != "Bearer sk-upstream-secret" {
+		t.Errorf("expected 'Bearer sk-upstream-secret', got '%s'", auth)
+	}
+
+	// Case 2: Direct provider key in Authorization
+	req2 := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+	req2.Header.Set("Authorization", "Bearer sk-proj-direct")
+	if auth := resolveUpstreamAuth(req2); auth != "Bearer sk-proj-direct" {
+		t.Errorf("expected 'Bearer sk-proj-direct', got '%s'", auth)
+	}
+
+	// Case 3: Dual headers: X-Sukami-Key + Authorization direct provider
+	req3 := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+	req3.Header.Set("X-Sukami-Key", "sk-sukami-tenant")
+	req3.Header.Set("Authorization", "Bearer sk-proj-provider")
+	if key := resolveSukamiKey(req3); key != "sk-sukami-tenant" {
+		t.Errorf("expected Sukami key 'sk-sukami-tenant', got '%s'", key)
+	}
+	if auth := resolveUpstreamAuth(req3); auth != "Bearer sk-proj-provider" {
+		t.Errorf("expected upstream auth 'Bearer sk-proj-provider', got '%s'", auth)
+	}
+}
+

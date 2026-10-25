@@ -44,17 +44,24 @@ export const Docs: React.FC = () => {
           <pre className="code-box">
             <code>{`from openai import OpenAI
 
+# Option A: Sukami Managed Key (Uses server's .env for upstream LLM)
 client = OpenAI(
-    base_url="https://api.sukami.io/v1",  # Or http://localhost:8080/v1 for local testing
-    api_key="sk-sukami-your-secret-key"   # Generated from API Keys tab (100k free trial tokens)
+    base_url="http://localhost:8080/v1",  # Sukami Gateway
+    api_key="sk-sukami-default"           # Free 100k trial token key
 )
+
+# Option B: Direct Passthrough (Zero .env config! Pass your LLM key directly)
+# client = OpenAI(
+#     base_url="http://localhost:8080/v1",
+#     api_key="sk-proj-your-openai-key",
+#     default_headers={"X-Sukami-Key": "sk-sukami-default"}
+# )
 
 response = client.chat.completions.create(
     model="gpt-4o",
     messages=[{"role": "user", "content": "Explain distributed systems architecture"}]
 )
 
-# Returns dense, high-performance response with up to 50% lower output costs
 print(response.choices[0].message.content)`}</code>
           </pre>
         </div>

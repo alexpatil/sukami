@@ -38,9 +38,8 @@ func (h *Handler) HandleChatCompletions(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Multi-tenant API Key authentication and rate limiting
-	rawAuth := r.Header.Get("Authorization")
-	clientKey := strings.TrimSpace(strings.TrimPrefix(rawAuth, "Bearer "))
-	if strings.HasPrefix(clientKey, "sk-sukami-") {
+	clientKey := resolveSukamiKey(r)
+	if clientKey != "" {
 		tenant, valid := h.authStore.Validate(clientKey)
 		if !valid {
 			writeError(w, http.StatusUnauthorized, "Unauthorized: Invalid Sukami API Key")
@@ -81,7 +80,7 @@ func (h *Handler) HandleChatCompletions(w http.ResponseWriter, r *http.Request) 
 	// 3. Cache Miss: apply output density optimization
 	optMessages, _ := optimizer.ApplyOutputOptimization(comp.Messages)
 	chatReq.Messages = optMessages
-	authHeader := getEffectiveAuth(r.Header.Get("Authorization"))
+	authHeader := resolveUpstreamAuth(r)
 
 	// Fallback to simulated completion if no API key provided
 	if authHeader == "" {
