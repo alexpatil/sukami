@@ -1,0 +1,17 @@
+services:
+  sukami:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: sukami:latest
+    container_name: sukami-gateway
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - UPSTREAM_URL=https://api.openai.com
+      # Optional: default provider keys (or pass dynamically via request headers)
+      # - OPENAI_API_KEY=
+      # - GROQ_API_KEY=
+      # - OPENROUTER_API_KEY=

@@ -56,13 +56,25 @@ Tested on `openai/gpt-oss-120b` (Deep-dive enterprise comparative analysis betwe
 
 Sukami is a pure Go binary with **zero Node.js dependencies** required for self-hosting.
 
-### 1. Clone & Run
+### Option A: Pure Go (Zero Dependencies)
 ```bash
 git clone https://github.com/alexpatil/sukami.git
 cd sukami
 
 # Start Sukami Gateway & Embedded Status Dashboard
 go run ./cmd/sukami
+```
+
+### Option B: Docker (Ultra-lightweight ~10MB)
+```bash
+# Build and run with Docker
+docker build -t sukami .
+docker run -p 8080:8080 sukami
+```
+
+### Option C: Docker Compose
+```bash
+docker compose up -d
 ```
 The Sukami Gateway and Developer Status Dashboard will immediately launch at **`http://localhost:8080`**.
 
