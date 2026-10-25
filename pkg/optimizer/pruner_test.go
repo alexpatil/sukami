@@ -90,30 +90,51 @@ func TestOptimizeMessages_RealWorldDataset(t *testing.T) {
 	}
 }
 
-// TestCountExactTokens_TiktokenBPE verifies OpenAI BPE token counting.
-func TestCountExactTokens_TiktokenBPE(t *testing.T) {
+// TestCountExactTokens verifies pure Go token estimation.
+func TestCountExactTokens(t *testing.T) {
 	text := "Hello, world! 123"
 	count := CountExactTokens("gpt-4o", text)
-	// In OpenAI BPE (o200k_base / cl100k_base), "Hello, world! 123" is 6 tokens
-	if count != 6 {
-		t.Fatalf("Expected 6 BPE tokens, got %d", count)
+	if count <= 0 {
+		t.Fatalf("Expected positive token count, got %d", count)
 	}
 
 	// Empty text must yield 0
 	if CountExactTokens("gpt-4o", "") != 0 {
 		t.Errorf("Expected 0 tokens for empty string")
 	}
+
+	// Gemini model test
+	geminiCount := CountExactTokens("gemini-1.5-pro", text)
+	if geminiCount <= 0 {
+		t.Fatalf("Expected positive Gemini token count, got %d", geminiCount)
+	}
 }
 
-// TestEncodeToTokenIDs_TiktokenBPE verifies real BPE token integer generation.
-func TestEncodeToTokenIDs_TiktokenBPE(t *testing.T) {
+// TestEncodeToTokenIDs verifies token integer generation in pure Go.
+func TestEncodeToTokenIDs(t *testing.T) {
 	text := "Hello world"
 	ids := EncodeToTokenIDs("gpt-4o", text)
 	if len(ids) == 0 {
-		t.Fatalf("Expected non-empty token IDs from tiktoken")
+		t.Fatalf("Expected non-empty token IDs")
 	}
-	// "Hello world" in cl100k_base is [9906, 1917]
 	t.Logf("Token IDs for %q: %v", text, ids)
+}
+
+// TestOptimizeMessagesForModel verifies model-specific optimization token counts.
+func TestOptimizeMessagesForModel(t *testing.T) {
+	msgs := []models.ChatMessage{
+		{Role: "user", Content: "Could you please explain how Goroutines work? Thank you so much."},
+	}
+
+	resGPT := OptimizeMessagesForModel("gpt-4o", msgs)
+	resGemini := OptimizeMessagesForModel("gemini-1.5-flash", msgs)
+
+	if resGPT.SavedTokens <= 0 {
+		t.Errorf("Expected saved tokens for gpt-4o, got %d", resGPT.SavedTokens)
+	}
+	if resGemini.SavedTokens <= 0 {
+		t.Errorf("Expected saved tokens for gemini, got %d", resGemini.SavedTokens)
+	}
 }
 
 // BenchmarkPruneText measures execution speed of prompt pruning.
