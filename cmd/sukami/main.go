@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -83,8 +82,16 @@ func main() {
 	limiter := auth.NewRateLimiter()
 	proxyHandler := proxy.NewHandler(memoryCache, tracker, authStore, limiter, upstreamURL)
 
-	// Pre-seed a few simulated requests so the dashboard has rich immediate visuals
-	seedDemoMetrics(tracker, memoryCache)
+	// Fetch live model pricing dynamically from pricing API on boot (zero hardcoding)
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+		if count, err := metrics.FetchLiveRates(ctx); err != nil {
+			slog.Warn("Pricing API unavailable (running in offline mode)", "err", err)
+		} else {
+			slog.Info("✅ Synchronized live model rates dynamically from API", "models", count)
+		}
+	}()
 
 	// 3. Register modern Go 1.22+ ServeMux routes
 	mux := http.NewServeMux()
@@ -100,13 +107,6 @@ func main() {
 	mux.HandleFunc("GET /api/keys", proxyHandler.HandleListKeys)
 	mux.HandleFunc("POST /api/keys", proxyHandler.HandleCreateKey)
 	mux.HandleFunc("DELETE /api/keys", proxyHandler.HandleDeleteKey)
-	mux.HandleFunc("GET /api/config", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]string{
-			"supabase_url":      os.Getenv("SUPABASE_URL"),
-			"supabase_anon_key": os.Getenv("SUPABASE_PUBLISHABLE_KEY"),
-		})
-	})
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprintf(w, `{"status":"ok","timestamp":"%s"}`, time.Now().UTC().Format(time.RFC3339))
@@ -123,11 +123,12 @@ func main() {
 	}))
 
 	server := &http.Server{
-		Addr:         ":" + port,
-		Handler:      corsMiddleware(mux),
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 120 * time.Second,
-		IdleTimeout:  120 * time.Second,
+		Addr:              ":" + port,
+		Handler:           corsMiddleware(mux),
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      120 * time.Second,
+		IdleTimeout:       120 * time.Second,
 	}
 
 	// 4. Graceful Shutdown Listener
@@ -157,53 +158,4 @@ func main() {
 	} else {
 		slog.Info("Server stopped cleanly.")
 	}
-}
-
-func seedDemoMetrics(t *metrics.Tracker, c *cache.MemoryCache) {
-	now := time.Now()
-	t.RecordRequest(metrics.RequestRecord{
-		ID:                "req_demo_1",
-		Timestamp:         now.Add(-14 * time.Minute),
-		Model:             "gpt-4o",
-		PromptPreview:     "Could you please explain how to implement OAuth2 in Go...",
-		OriginalTokens:    1420,
-		SavedTokens:       520,
-		InputSavedTokens:  180,
-		OutputSavedTokens: 340,
-		BilledTokens:      900,
-		SavingsPercent:    36.6,
-		CacheHit:          false,
-		LatencyMs:         340,
-		Status:            "200 OK (Optimized)",
-	})
-	t.RecordRequest(metrics.RequestRecord{
-		ID:                "req_demo_2",
-		Timestamp:         now.Add(-8 * time.Minute),
-		Model:             "gpt-4o",
-		PromptPreview:     "Could you please explain how to implement OAuth2 in Go...",
-		OriginalTokens:    1420,
-		SavedTokens:       1420,
-		InputSavedTokens:  710,
-		OutputSavedTokens: 710,
-		BilledTokens:      0,
-		SavingsPercent:    100.0,
-		CacheHit:          true,
-		LatencyMs:         8,
-		Status:            "200 OK (Cache HIT)",
-	})
-	t.RecordRequest(metrics.RequestRecord{
-		ID:                "req_demo_3",
-		Timestamp:         now.Add(-2 * time.Minute),
-		Model:             "claude-3-5-sonnet",
-		PromptPreview:     "I would like you to analyze this PostgreSQL indexing query...",
-		OriginalTokens:    3840,
-		SavedTokens:       1150,
-		InputSavedTokens:  420,
-		OutputSavedTokens: 730,
-		BilledTokens:      2690,
-		SavingsPercent:    29.9,
-		CacheHit:          false,
-		LatencyMs:         420,
-		Status:            "200 OK (Optimized)",
-	})
 }

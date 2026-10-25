@@ -1,13 +1,17 @@
 package proxy
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
+	"net"
 	"net/http"
 	"os"
 	"strings"
 	"sukami/pkg/auth"
 	"sukami/pkg/metrics"
 	"sukami/pkg/models"
+	"sukami/pkg/optimizer"
 	"time"
 )
 
@@ -40,6 +44,19 @@ func NewHandler(cache Cache, tracker RequestTracker, authStore auth.KeyStore, li
 	if upstreamURL == "" {
 		upstreamURL = "https://api.openai.com"
 	}
+	transport := &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		DialContext: (&net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}).DialContext,
+		ForceAttemptHTTP2:     true,
+		MaxIdleConns:          1000,
+		MaxIdleConnsPerHost:   100,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+	}
 	return &Handler{
 		cache:       cache,
 		tracker:     tracker,
@@ -47,7 +64,8 @@ func NewHandler(cache Cache, tracker RequestTracker, authStore auth.KeyStore, li
 		limiter:     limiter,
 		upstreamURL: upstreamURL,
 		httpClient: &http.Client{
-			Timeout: 120 * time.Second,
+			Transport: transport,
+			Timeout:   120 * time.Second,
 		},
 	}
 }
@@ -140,4 +158,67 @@ func buildPromptFingerprint(messages []models.ChatMessage) string {
 		sb.WriteString("\n")
 	}
 	return sb.String()
+}
+
+// generateReqID creates a cryptographically unique request identifier.
+func generateReqID() string {
+	b := make([]byte, 8)
+	_, _ = rand.Read(b)
+	return "req_" + hex.EncodeToString(b)
+}
+
+// scopedCacheModel returns a tenant-scoped model identifier for cache isolation.
+// This prevents cross-tenant data leaks by namespacing cache entries per tenant key.
+func scopedCacheModel(tenantKey, model string) string {
+	if tenantKey == "" {
+		return "pub|" + model
+	}
+	prefix := tenantKey
+	if len(prefix) > 16 {
+		prefix = prefix[:16]
+	}
+	return prefix + "|" + model
+}
+
+func (h *Handler) recordMissMetric(id, model, prompt string, comp optimizer.CompressionResult, start time.Time, status string, respBytes []byte) {
+	record := metrics.RequestRecord{
+		ID:                id,
+		Timestamp:         time.Now(),
+		Model:             model,
+		PromptPreview:     truncate(prompt, 60),
+		OriginalTokens:    comp.OriginalTokens,
+		SavedTokens:       comp.SavedTokens,
+		InputSavedTokens:  comp.SavedTokens,
+		OutputSavedTokens: 0,
+		BilledTokens:      comp.OptimizedTokens,
+		SavingsPercent:    comp.SavingsPercent,
+		CacheHit:          false,
+		LatencyMs:         time.Since(start).Milliseconds(),
+		Status:            status,
+	}
+
+	// Extract authoritative ground-truth tokens directly from upstream provider response
+	if len(respBytes) > 0 {
+		var u struct {
+			Usage struct {
+				PromptTokens     int `json:"prompt_tokens"`
+				CompletionTokens int `json:"completion_tokens"`
+				TotalTokens      int `json:"total_tokens"`
+			} `json:"usage"`
+		}
+		if json.Unmarshal(respBytes, &u) == nil && u.Usage.PromptTokens > 0 {
+			totalBilled := u.Usage.TotalTokens
+			if totalBilled == 0 {
+				totalBilled = u.Usage.PromptTokens + u.Usage.CompletionTokens
+			}
+			record.BilledTokens = totalBilled
+			record.OriginalTokens = totalBilled + comp.SavedTokens
+			if record.OriginalTokens > 0 {
+				record.SavingsPercent = (float64(record.SavedTokens) / float64(record.OriginalTokens)) * 100.0
+			}
+		}
+	}
+	costUSD, _ := metrics.CalculateSavingsUSD(model, record.InputSavedTokens, record.OutputSavedTokens)
+	record.CostSavedUSD = costUSD
+	h.tracker.RecordRequest(record)
 }

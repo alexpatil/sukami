@@ -16,11 +16,13 @@ type RateLimiter struct {
 	buckets map[string]*bucket
 }
 
-// NewRateLimiter instantiates the rate limiter.
+// NewRateLimiter instantiates the rate limiter with background stale-bucket eviction.
 func NewRateLimiter() *RateLimiter {
-	return &RateLimiter{
+	rl := &RateLimiter{
 		buckets: make(map[string]*bucket),
 	}
+	go rl.evictStale()
+	return rl
 }
 
 // Allow evaluates if a request is permitted under rate limit per minute.
@@ -58,4 +60,19 @@ func (rl *RateLimiter) Allow(key string, limitPerMin int) bool {
 	}
 
 	return false // Rate limit exceeded!
+}
+
+// evictStale removes rate-limiter buckets that have been inactive for over 10 minutes.
+func (rl *RateLimiter) evictStale() {
+	ticker := time.NewTicker(5 * time.Minute)
+	for range ticker.C {
+		rl.mu.Lock()
+		cutoff := time.Now().Add(-10 * time.Minute)
+		for k, b := range rl.buckets {
+			if b.lastRefill.Before(cutoff) {
+				delete(rl.buckets, k)
+			}
+		}
+		rl.mu.Unlock()
+	}
 }
