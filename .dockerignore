@@ -1,0 +1,10 @@
+.git
+.github
+.agents
+.gemini
+bin/
+*.exe
+*.log
+.env
+*.md
+docs/
