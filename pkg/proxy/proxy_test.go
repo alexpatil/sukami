@@ -22,10 +22,10 @@ func setupTestHandler() (*Handler, auth.KeyStore, *metrics.Tracker) {
 	return h, ks, t
 }
 
-func TestHandleCreateKey_FreeTrialQuota(t *testing.T) {
+func TestHandleCreateKey_Standard(t *testing.T) {
 	h, _, _ := setupTestHandler()
 
-	body := []byte(`{"name":"Free Trial Developer","tier":"free"}`)
+	body := []byte(`{"name":"Developer Key","tier":"standard"}`)
 	req := httptest.NewRequest(http.MethodPost, "/api/keys", bytes.NewReader(body))
 	rec := httptest.NewRecorder()
 
@@ -40,44 +40,47 @@ func TestHandleCreateKey_FreeTrialQuota(t *testing.T) {
 		t.Fatalf("failed to decode response: %v", err)
 	}
 
-	if created.Tier != "free" {
-		t.Errorf("expected tier 'free', got %s", created.Tier)
+	if created.Tier != "standard" {
+		t.Errorf("expected tier 'standard', got %s", created.Tier)
 	}
-	if created.QuotaLimit != 100000 {
-		t.Errorf("expected QuotaLimit 100000, got %d", created.QuotaLimit)
-	}
-	if created.QuotaUsed != 0 {
-		t.Errorf("expected QuotaUsed 0, got %d", created.QuotaUsed)
+	if created.RateLimitPerMin != 60 {
+		t.Errorf("expected RateLimitPerMin 60, got %d", created.RateLimitPerMin)
 	}
 }
 
-func TestHandleChatCompletions_QuotaExhaustion(t *testing.T) {
+func TestHandleChatCompletions_RateLimitExceeded(t *testing.T) {
 	h, ks, _ := setupTestHandler()
 
-	// Create a free key and simulate exhausted quota
-	key, err := ks.CreateKey("Quota Test", "free")
+	key, err := ks.CreateKey("Rate Test", "standard")
 	if err != nil {
 		t.Fatalf("failed to create key: %v", err)
 	}
-	ks.RecordTokenUsage(key.Key, 100000, 5000)
 
-	// Make chat request using the exhausted key
+	// Exhaust rate limit directly
+	key.RateLimitPerMin = 1
+
 	chatReq := models.ChatCompletionRequest{
 		Model: "gpt-4o",
 		Messages: []models.ChatMessage{
-			{Role: "user", Content: "Hello world"},
+			{Role: "user", Content: "Hello world 1"},
 		},
 	}
 	reqBytes, _ := json.Marshal(chatReq)
-	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", bytes.NewReader(reqBytes))
-	req.Header.Set("Authorization", "Bearer "+key.Key)
-	rec := httptest.NewRecorder()
 
-	h.HandleChatCompletions(rec, req)
+	// First request succeeds or simulates
+	req1 := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", bytes.NewReader(reqBytes))
+	req1.Header.Set("Authorization", "Bearer "+key.Key)
+	rec1 := httptest.NewRecorder()
+	h.HandleChatCompletions(rec1, req1)
 
-	// Must reject with 402 Payment Required
-	if rec.Code != http.StatusPaymentRequired {
-		t.Fatalf("expected status 402 Payment Required for exhausted quota, got %d (body: %s)", rec.Code, rec.Body.String())
+	// Second request within the same minute should be throttled (429)
+	req2 := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", bytes.NewReader(reqBytes))
+	req2.Header.Set("Authorization", "Bearer "+key.Key)
+	rec2 := httptest.NewRecorder()
+	h.HandleChatCompletions(rec2, req2)
+
+	if rec2.Code != http.StatusTooManyRequests {
+		t.Fatalf("expected status 429 Too Many Requests, got %d (body: %s)", rec2.Code, rec2.Body.String())
 	}
 }
 

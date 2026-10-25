@@ -20,26 +20,5 @@ jobs:
         run: go vet ./...
       - name: Run Go Unit Tests
         run: go test -v -race ./pkg/...
-
-  frontend:
-    name: Web Frontend Test & Lint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v3
-        with:
-          version: 9
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
-          cache-dependency-path: 'web/pnpm-lock.yaml'
-      - name: Install Dependencies
-        run: cd web && pnpm install --frozen-lockfile
-      - name: Run Linter
-        run: cd web && pnpm run lint
-      - name: Run Unit Tests
-        run: cd web && pnpm test
-      - name: Production Build
-        run: cd web && pnpm run build
+      - name: Build Binary
+        run: go build -v -o bin/sukami ./cmd/sukami

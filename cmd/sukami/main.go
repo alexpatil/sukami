@@ -92,8 +92,8 @@ func main() {
 		fmt.Fprintf(w, `{"status":"ok","timestamp":"%s"}`, time.Now().UTC().Format(time.RFC3339))
 	})
 
-	// React SPA Dashboard static files from ./web/dist
-	fs := http.FileServer(http.Dir("./web/dist"))
+	// Developer Status Dashboard static files from ./web
+	fs := http.FileServer(http.Dir("./web"))
 	mux.Handle("GET /", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.URL.Path, "/v1/") || strings.HasPrefix(r.URL.Path, "/api/") {
 			http.NotFound(w, r)

@@ -47,11 +47,7 @@ func (h *Handler) HandleChatCompletions(w http.ResponseWriter, r *http.Request) 
 		}
 		if !h.limiter.Allow(clientKey, tenant.RateLimitPerMin) {
 			w.Header().Set("Retry-After", "60")
-			writeError(w, http.StatusTooManyRequests, fmt.Sprintf("Rate limit exceeded for tier '%s' (%d req/min)", tenant.Tier, tenant.RateLimitPerMin))
-			return
-		}
-		if allowed, quotaMsg := h.authStore.CheckQuota(clientKey); !allowed {
-			writeError(w, http.StatusPaymentRequired, quotaMsg)
+			writeError(w, http.StatusTooManyRequests, fmt.Sprintf("Rate limit exceeded (%d req/min)", tenant.RateLimitPerMin))
 			return
 		}
 	}

@@ -1,4 +1,4 @@
-.PHONY: all build test vet run bench web-install web-build web-test
+.PHONY: all build test vet run bench
 
 all: vet test build
 
@@ -16,12 +16,3 @@ vet:
 
 run:
 	go run ./cmd/sukami
-
-web-install:
-	cd web && pnpm install
-
-web-build:
-	cd web && pnpm run build
-
-web-test:
-	cd web && pnpm test

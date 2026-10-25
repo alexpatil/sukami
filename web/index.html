@@ -1,15 +1,235 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Sukami ⚡ Enterprise AI Token Optimization Platform</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sukami AI • Open Source Token Optimization Gateway</title>
+  <style>
+    :root {
+      --bg: #090d16;
+      --card: #111827;
+      --border: rgba(255, 255, 255, 0.08);
+      --primary: #38bdf8;
+      --accent: #10b981;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      padding: 24px;
+    }
+    .container { max-width: 1100px; margin: 0 auto; }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 24px;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-logo {
+      width: 38px; height: 38px; border-radius: 8px;
+      background: linear-gradient(135deg, #0284c7, #38bdf8);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 1.2rem; color: #fff;
+    }
+    .brand-title { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; }
+    .brand-subtitle { font-size: 0.8rem; color: var(--text-muted); }
+    .badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600;
+      background: rgba(16, 185, 129, 0.1); color: var(--accent); border: 1px solid rgba(16, 185, 129, 0.2);
+    }
+    .badge-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 20px;
+    }
+    .card-title { font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; margin-bottom: 8px; }
+    .card-value { font-size: 1.75rem; font-weight: 700; color: var(--text); }
+    .card-sub { font-size: 0.75rem; color: var(--primary); margin-top: 4px; }
+    .section-title { font-size: 1rem; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .table-container { overflow-x: auto; background: var(--card); border: 1px solid var(--border); border-radius: 12px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; text-align: left; }
+    th { padding: 12px 16px; color: var(--text-muted); border-bottom: 1px solid var(--border); font-weight: 600; }
+    td { padding: 12px 16px; border-bottom: 1px solid var(--border); }
+    tr:last-child td { border-bottom: none; }
+    .tag { padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
+    .tag-cache { background: rgba(56, 189, 248, 0.1); color: var(--primary); }
+    .tag-miss { background: rgba(148, 163, 184, 0.1); color: var(--text-muted); }
+    .code-box {
+      background: #060911; border: 1px solid var(--border); border-radius: 8px;
+      padding: 16px; font-family: monospace; font-size: 0.85rem; color: #cbd5e1;
+      overflow-x: auto; margin-top: 12px;
+    }
+    .playground-box {
+      margin-top: 24px; background: var(--card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 20px;
+    }
+    textarea {
+      width: 100%; background: #060911; border: 1px solid var(--border);
+      border-radius: 8px; padding: 12px; color: #fff; font-size: 0.85rem;
+      resize: vertical; min-height: 80px; margin-top: 10px; font-family: inherit;
+    }
+    .btn {
+      background: var(--primary); color: #000; border: none; padding: 8px 16px;
+      border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.85rem; margin-top: 10px;
+    }
+    .btn:hover { opacity: 0.9; }
+    .result-box { margin-top: 12px; padding: 12px; background: rgba(56, 189, 248, 0.05); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 8px; font-size: 0.85rem; display: none; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="brand">
+        <div class="brand-logo">S</div>
+        <div>
+          <div class="brand-title">Sukami AI Gateway</div>
+          <div class="brand-subtitle">Open-Source Token Optimization Reverse Proxy</div>
+        </div>
+      </div>
+      <div>
+        <span class="badge"><span class="badge-dot"></span> Live • Port 8080</span>
+      </div>
+    </header>
+
+    <div class="grid">
+      <div class="card">
+        <div class="card-title">Total Requests</div>
+        <div class="card-value" id="val-requests">-</div>
+        <div class="card-sub">In-flight proxying</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Tokens Saved</div>
+        <div class="card-value" id="val-saved">-</div>
+        <div class="card-sub" id="val-percent">0.0% reduction</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Est. Cost Saved</div>
+        <div class="card-value" id="val-cost">$0.00</div>
+        <div class="card-sub">Based on GPT-4o rates</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Cache Hit Rate</div>
+        <div class="card-value" id="val-cache">0.0%</div>
+        <div class="card-sub">5-Layer Semantic Guard</div>
+      </div>
+    </div>
+
+    <div class="playground-box">
+      <div class="section-title">⚡ Instant Optimizer Test</div>
+      <p style="font-size: 0.85rem; color: var(--text-muted);">Test prompt pruning and real OpenAI tiktoken BPE token counting locally without API credits.</p>
+      <textarea id="prompt-input" placeholder="Type or paste any wordy prompt to test instant compression...">Could you please kindly help me write a function in Go that connects to PostgreSQL and downloads records concurrently? Please make sure to handle errors properly. Thank you!</textarea>
+      <button class="btn" onclick="testOptimize()">Optimize Prompt</button>
+      <div id="result-box" class="result-box"></div>
+    </div>
+
+    <div style="margin-top: 24px;">
+      <div class="section-title">📊 Live Activity Log</div>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Model</th>
+              <th>Prompt Preview</th>
+              <th>Orig</th>
+              <th>Saved</th>
+              <th>Status</th>
+              <th>Latency</th>
+            </tr>
+          </thead>
+          <tbody id="log-body">
+            <tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Listening for requests...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div style="margin-top: 24px;">
+      <div class="section-title">🔌 1-Line Drop-In Integration</div>
+      <div class="code-box">from openai import OpenAI
+
+# Drop-in replacement: redirect base_url to local Sukami Gateway
+client = OpenAI(
+    base_url="http://localhost:8080/v1",
+    api_key="sk-proj-your-api-key" # Or pass server .env key
+)
+
+response = client.chat.completions.create(
+    model="gpt-4o",
+    messages=[{"role": "user", "content": "Explain distributed systems architecture"}]
+)
+print(response.choices[0].message.content)</div>
+    </div>
+  </div>
+
+  <script>
+    async function fetchMetrics() {
+      try {
+        const res = await fetch('/api/metrics');
+        if (!res.ok) return;
+        const data = await res.json();
+        document.getElementById('val-requests').innerText = data.total_requests || 0;
+        document.getElementById('val-saved').innerText = (data.saved_tokens || 0).toLocaleString();
+        document.getElementById('val-percent').innerText = `${(data.savings_percent || 0).toFixed(1)}% reduction`;
+        document.getElementById('val-cost').innerText = `$${(data.cost_saved_usd || 0).toFixed(4)}`;
+        document.getElementById('val-cache').innerText = `${(data.cache_hit_percent || 0).toFixed(1)}%`;
+
+        if (data.recent_requests && data.recent_requests.length > 0) {
+          const tbody = document.getElementById('log-body');
+          tbody.innerHTML = data.recent_requests.slice(0, 10).map(r => `
+            <tr>
+              <td>${new Date(r.timestamp).toLocaleTimeString()}</td>
+              <td><code>${r.model}</code></td>
+              <td>${escapeHtml(r.prompt_preview || '-')}</td>
+              <td>${r.original_tokens}</td>
+              <td style="color: var(--accent); font-weight: 600;">+${r.saved_tokens}</td>
+              <td><span class="tag ${r.cache_hit ? 'tag-cache' : 'tag-miss'}">${r.cache_hit ? 'CACHE' : 'MISS'}</span></td>
+              <td>${r.latency_ms}ms</td>
+            </tr>
+          `).join('');
+        }
+      } catch (e) {
+        console.error("Metrics fetch error", e);
+      }
+    }
+
+    async function testOptimize() {
+      const prompt = document.getElementById('prompt-input').value.trim();
+      if (!prompt) return;
+      try {
+        const res = await fetch('/api/playground', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt })
+        });
+        const data = await res.json();
+        const box = document.getElementById('result-box');
+        box.style.display = 'block';
+        box.innerHTML = `<strong>Optimized Result:</strong> ${escapeHtml(data.optimized_text)}<br><br>` +
+          `<strong>Original Tokens:</strong> ${data.original_tokens} &nbsp;|&nbsp; ` +
+          `<strong>Optimized:</strong> ${data.optimized_tokens} &nbsp;|&nbsp; ` +
+          `<strong style="color: #10b981;">Saved: ${data.saved_tokens} tokens (${data.savings_percent.toFixed(1)}%)</strong>`;
+      } catch (e) {
+        alert("Optimization test error: " + e.message);
+      }
+    }
+
+    function escapeHtml(text) {
+      const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+      return text.replace(/[&<>"']/g, m => map[m]);
+    }
+
+    fetchMetrics();
+    setInterval(fetchMetrics, 3000);
+  </script>
+</body>
 </html>
