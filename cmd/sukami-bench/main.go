@@ -22,7 +22,7 @@ func main() {
 
 	apiKey := groqKey
 	upstreamURL := "https://api.groq.com/openai/v1/chat/completions"
-	modelName := "openai/gpt-oss-120b"
+	modelName := "llama-3.3-70b-versatile"
 
 	if openAIKey != "" {
 		apiKey = openAIKey
