@@ -58,30 +58,44 @@ The gateway and developer dashboard will be immediately active at **`http://loca
 
 ## 🔌 Integration
 
-Sukami is **100% OpenAI-compatible**. Simply point your existing client's `base_url` to Sukami:
+Sukami is a **100% drop-in replacement** for the OpenAI API. Simply set your client's `base_url` to `http://localhost:8080/v1`:
 
-### Python (OpenAI SDK)
+### Python
 ```python
 from openai import OpenAI
 
 client = OpenAI(
     base_url="http://localhost:8080/v1",
-    api_key="your-api-key",  # Forwarded directly to upstream provider
-    default_headers={"X-Provider": "openrouter"}  # Optional: dynamic provider routing
+    api_key="your-api-key"  # OpenAI, Groq, or OpenRouter key
 )
 
 response = client.chat.completions.create(
-    model="anthropic/claude-3.5-sonnet",
-    messages=[{"role": "user", "content": "Explain raft consensus in distributed systems"}]
+    model="gpt-4o",
+    messages=[{"role": "user", "content": "Explain raft consensus in 3 bullet points"}]
 )
 print(response.choices[0].message.content)
+```
+
+### Node.js / TypeScript
+```javascript
+import OpenAI from "openai";
+
+const client = new OpenAI({
+  baseURL: "http://localhost:8080/v1",
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+const response = await client.chat.completions.create({
+  model: "gpt-4o",
+  messages: [{ role: "user", content: "Explain raft consensus in 3 bullet points" }],
+});
 ```
 
 ### cURL
 ```bash
 curl http://localhost:8080/v1/chat/completions \
-  -H "Content-Type: application/json" \
   -H "Authorization: Bearer $OPENAI_API_KEY" \
+  -H "Content-Type: application/json" \
   -d '{
     "model": "gpt-4o",
     "messages": [{"role": "user", "content": "Explain raft consensus in 3 bullet points"}]
