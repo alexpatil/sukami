@@ -569,13 +569,13 @@
       </div>
       <div class="metric-card">
         <div class="metric-label">Tokens Saved</div>
-        <div class="metric-value" id="val-saved">-</div>
+        <div class="metric-value" id="val-saved" style="color: var(--success);">-</div>
         <div class="metric-sub" id="val-percent">0.0% overall reduction</div>
       </div>
       <div class="metric-card">
         <div class="metric-label">Estimated Cost Saved</div>
-        <div class="metric-value" id="val-cost">$0.00</div>
-        <div class="metric-sub">Computed against active models</div>
+        <div class="metric-value" id="val-cost" style="color: var(--success);">$0.00</div>
+        <div class="metric-sub">Real-time LLM billing reduction</div>
       </div>
       <div class="metric-card">
         <div class="metric-label">Semantic Cache Hit Rate</div>
@@ -1069,25 +1069,42 @@ Please make sure to handle errors properly and kindly include inline comments ex
         if (!res.ok) return;
         const data = await res.json();
 
-        document.getElementById('val-requests').innerText = (data.total_requests || 0).toLocaleString();
-        document.getElementById('val-saved').innerText = (data.saved_tokens || 0).toLocaleString();
-        document.getElementById('val-percent').innerText = `${(data.savings_percent || 0).toFixed(1)}% overall reduction`;
-        document.getElementById('val-cost').innerText = `$${(data.cost_saved_usd || 0).toFixed(4)}`;
-        document.getElementById('val-cache').innerText = `${(data.cache_hit_percent || 0).toFixed(1)}%`;
+        const totalReqs = data.total_requests ?? 0;
+        const totalSaved = data.total_saved_tokens ?? data.saved_tokens ?? 0;
+        const savingsPct = data.overall_savings_pct ?? data.savings_percent ?? 0;
+        const costSaved = data.estimated_cost_saved_usd ?? data.cost_saved_usd ?? 0;
+        const cacheHitRate = data.cache_hit_rate ?? data.cache_hit_percent ?? 0;
 
+        document.getElementById('val-requests').innerText = totalReqs.toLocaleString();
+        document.getElementById('val-saved').innerText = totalSaved.toLocaleString();
+        document.getElementById('val-percent').innerText = `${savingsPct.toFixed(1)}% overall reduction`;
+        document.getElementById('val-cost').innerText = `$${costSaved >= 1 ? costSaved.toFixed(2) : costSaved.toFixed(4)}`;
+        document.getElementById('val-cache').innerText = `${cacheHitRate.toFixed(1)}%`;
+
+        const tbody = document.getElementById('log-body');
         if (data.recent_requests && data.recent_requests.length > 0) {
-          const tbody = document.getElementById('log-body');
-          tbody.innerHTML = data.recent_requests.slice(0, 10).map(r => `
+          tbody.innerHTML = data.recent_requests.slice(0, 10).map(r => {
+            const costText = r.cost_saved_usd > 0 ? `<span style="font-size: 0.75rem; color: #34d399; margin-left: 4px;">($${r.cost_saved_usd >= 1 ? r.cost_saved_usd.toFixed(2) : r.cost_saved_usd.toFixed(4)})</span>` : '';
+            return `
             <tr>
               <td>${new Date(r.timestamp).toLocaleTimeString()}</td>
               <td><span class="model-badge">${escapeHtml(r.model)}</span></td>
               <td style="color: #cbd5e1; max-width: 320px; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(r.prompt_preview || '-')}</td>
               <td>${r.original_tokens}</td>
-              <td style="color: var(--success); font-weight: 600;">+${r.saved_tokens}</td>
+              <td style="color: var(--success); font-weight: 600;">+${r.saved_tokens} ${costText}</td>
               <td><span class="tag ${r.cache_hit ? 'tag-cache' : 'tag-miss'}">${r.cache_hit ? 'CACHE HIT' : 'PROXY MISS'}</span></td>
               <td style="color: var(--text-muted); font-family: 'JetBrains Mono', monospace;">${r.latency_ms}ms</td>
             </tr>
-          `).join('');
+          `;
+          }).join('');
+        } else {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 24px;">
+                Listening for incoming requests on <code>http://localhost:8080/v1</code>...
+              </td>
+            </tr>
+          `;
         }
       } catch (e) {
         console.error("Failed to refresh metrics", e);

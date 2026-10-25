@@ -19,6 +19,7 @@ type RequestRecord struct {
 	SavingsPercent    float64   `json:"savings_percent"`
 	CacheHit          bool      `json:"cache_hit"`
 	LatencyMs         int64     `json:"latency_ms"`
+	CostSavedUSD      float64   `json:"cost_saved_usd"`
 	Status            string    `json:"status"`
 }
 
@@ -49,6 +50,7 @@ type Tracker struct {
 	totalInputSavedTokens  int64
 	totalOutputSavedTokens int64
 	totalBilledTokens      int64
+	totalCostSavedUSD      float64
 	recentRequests         []RequestRecord
 	maxRecent              int
 }
@@ -82,11 +84,20 @@ func (t *Tracker) RecordRequest(record RequestRecord) {
 	t.totalOutputSavedTokens += int64(record.OutputSavedTokens)
 	t.totalBilledTokens += int64(record.BilledTokens)
 
-	// Prepend to recent list
-	t.recentRequests = append([]RequestRecord{record}, t.recentRequests...)
-	if len(t.recentRequests) > t.maxRecent {
-		t.recentRequests = t.recentRequests[:t.maxRecent]
+	// Calculate dynamic API cost savings if not pre-populated
+	if record.CostSavedUSD <= 0 && (record.InputSavedTokens > 0 || record.OutputSavedTokens > 0) {
+		if usd, found := CalculateSavingsUSD(record.Model, record.InputSavedTokens, record.OutputSavedTokens); found {
+			record.CostSavedUSD = usd
+		}
 	}
+	t.totalCostSavedUSD += record.CostSavedUSD
+
+	// Prepend newest-first without allocating a new backing array at capacity
+	if len(t.recentRequests) < t.maxRecent {
+		t.recentRequests = append(t.recentRequests, RequestRecord{})
+	}
+	copy(t.recentRequests[1:], t.recentRequests)
+	t.recentRequests[0] = record
 }
 
 // GetSummary compiles the current operational metrics for the dashboard.
@@ -104,9 +115,6 @@ func (t *Tracker) GetSummary() Summary {
 		savingsPct = (float64(t.totalSavedTokens) / float64(t.totalOriginalTokens)) * 100.0
 	}
 
-	// Cost saved formula: Average blended LLM cost ~$3.00 per 1M tokens ($0.000003 per token)
-	costSaved := float64(t.totalSavedTokens) * 0.000003
-
 	recentCopy := make([]RequestRecord, len(t.recentRequests))
 	copy(recentCopy, t.recentRequests)
 
@@ -121,7 +129,7 @@ func (t *Tracker) GetSummary() Summary {
 		TotalOutputSavedTokens: t.totalOutputSavedTokens,
 		TotalBilledTokens:      t.totalBilledTokens,
 		OverallSavingsPct:      savingsPct,
-		EstimatedCostSaved:     costSaved,
+		EstimatedCostSaved:     t.totalCostSavedUSD,
 		RecentRequests:         recentCopy,
 	}
 }
