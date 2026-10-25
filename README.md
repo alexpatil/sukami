@@ -14,7 +14,7 @@
 [Features](#-key-features) •
 [Quickstart](#-quickstart) •
 [Integration](#-integration) •
-[Providers & Routing](#-providers--routing) •
+[Providers](#-supported-providers) •
 [Benchmark](#-measured-benchmark) •
 [Contributing](CONTRIBUTING.md)
 
@@ -104,17 +104,19 @@ curl http://localhost:8080/v1/chat/completions \
 
 ---
 
-## 🌐 Providers & Automatic Routing
+## 🌐 Supported Providers
 
-Sukami automatically inspects the **model name** and routes requests to the right provider with **zero custom headers required**:
+Sukami automatically routes requests based on the requested model name with **zero configuration**:
 
-| Provider | Supported Models | Automatic Routing Trigger | Optional Header Override |
-| :--- | :--- | :--- | :--- |
-| **OpenAI** | `gpt-4o`, `gpt-4o-mini`, `o1`, `gpt-4-turbo` | Default / `gpt-*` models | `X-Provider: openai` |
-| **Groq Cloud** | `llama-3.3-70b-versatile`, `mixtral-8x7b` | `llama*` or `mixtral*` models | `X-Provider: groq` |
-| **DeepSeek** | `deepseek-chat` (V3), `deepseek-reasoner` (R1) | `deepseek*` models | `X-Provider: deepseek` |
-| **OpenRouter** | 300+ models (Claude 3.5, Gemini 2.0, Llama 3.3) | `claude*`, `gemini*`, or `openrouter/*` | `X-Provider: openrouter` |
-| **Ollama / Local** | Local models (`llama3.2`, `mistral`, `deepseek`) | Default port `11434` or custom URL | `X-Upstream-Url: http://...` |
+| Provider | Models Routed Automatically |
+| :--- | :--- |
+| **OpenAI** | `gpt-4o`, `gpt-4o-mini`, `o1`, `gpt-4-turbo` |
+| **Groq Cloud** | `llama-3.3-70b-versatile`, `mixtral-8x7b` |
+| **DeepSeek** | `deepseek-chat` (V3), `deepseek-reasoner` (R1) |
+| **OpenRouter** | `claude-3.5-sonnet`, `gemini-2.0`, and 300+ models |
+| **Ollama / Local** | Local models via `http://localhost:11434/v1` |
+
+> **Custom Routing**: Need a custom host? Pass `X-Upstream-Url: https://...` or `X-Provider: <id>` per request.
 
 ---
 
