@@ -11,20 +11,32 @@
 [![Docker Image Size](https://img.shields.io/badge/Docker-~10MB-blue.svg)]()
 [![Tests](https://img.shields.io/badge/Tests-Passing-brightgreen.svg)]()
 
-[Quickstart](#-quickstart) •
 [Features](#-key-features) •
+[Quickstart](#-quickstart) •
 [Integration](#-integration) •
 [Providers & Routing](#-providers--routing) •
-[Architecture](#-architecture) •
+[Benchmark](#-measured-benchmark) •
 [Contributing](CONTRIBUTING.md)
 
 </div>
 
 ---
 
+## 💡 Key Features
+
+- **Transparent Prompt Pruning**: Strips redundant conversational fluff, pleasantries, and excessive whitespace using pure Go text optimization without altering prompt semantics or code integrity.
+- **In-Memory Semantic Caching**: Serves semantically equivalent queries directly from cache in `<10ms` with an Entity Collision Guard (strictly distinguishes distinct entities like Docker vs. Kubernetes).
+- **Tenant Cache Isolation**: Namespaces cache entries per API key to ensure zero cross-tenant data leaks.
+- **Dynamic Multi-Provider Routing**: Switch providers dynamically per-request via headers (`X-Provider`, `X-Upstream-Url`) or model prefixes across OpenRouter, Groq, OpenAI, DeepSeek, and local Ollama/vLLM.
+- **Real-Time Streaming**: Native Server-Sent Events (SSE) streaming with immediate chunk flushing.
+- **Enterprise Concurrency**: Connection-pooled HTTP transport (1,000 idle conns), 10MB request body limits, Slowloris protection, and graceful shutdown.
+- **Zero Dependencies**: 100% pure Go standard library binary (~10MB Alpine container, zero Node.js).
+
+---
+
 ## ⚡ Quickstart
 
-Sukami is a lightweight, single-binary reverse proxy with an embedded status dashboard.
+Sukami is a lightweight, single-binary reverse proxy with an embedded developer status dashboard.
 
 ### Option A: Pure Go (Zero Dependencies)
 ```bash
@@ -45,19 +57,7 @@ docker build -t sukami .
 docker run -p 8080:8080 sukami
 ```
 
-The gateway and developer dashboard will be active at **`http://localhost:8080`**.
-
----
-
-## 💡 Key Features
-
-- **Transparent Prompt Pruning**: Strips redundant conversational fluff, pleasantries, and excessive whitespace using pure Go text optimization without altering prompt semantics.
-- **In-Memory Semantic Caching**: Serves semantically equivalent queries directly from cache in `<10ms` with an Entity Collision Guard (strictly distinguishes distinct entities like Docker vs. Kubernetes).
-- **Tenant Cache Isolation**: Namespaces cache entries per API key to ensure zero cross-tenant data leaks.
-- **Dynamic Multi-Provider Routing**: Switch providers dynamically per-request via headers (`X-Provider`, `X-Upstream-Url`) or model prefixes across OpenRouter, Groq, OpenAI, DeepSeek, and local Ollama/vLLM.
-- **Real-Time Streaming**: Native Server-Sent Events (SSE) streaming with immediate chunk flushing.
-- **Enterprise-Grade Concurrency**: Connection-pooled HTTP transport (1,000 idle conns), 10MB request body limits, Slowloris protection, and graceful shutdown.
-- **Zero Node.js Bloat**: ~10MB Alpine container image, self-contained single binary, pure Go.
+The gateway and developer dashboard will be immediately active at **`http://localhost:8080`**.
 
 ---
 
@@ -121,29 +121,6 @@ Sample evaluation on `openai/gpt-oss-120b` (technical comparative analysis promp
 | **Completion Status** | `length` *(truncated)* | **`stop` *(complete)*** | Full response delivered |
 
 > *Full benchmark methodology and automated runner are located in [cmd/sukami-bench](cmd/sukami-bench).*
-
----
-
-## 🏛 Architecture
-
-Sukami follows Go standard project layout conventions:
-
-```text
-sukami/
-├── cmd/
-│   ├── sukami/              # Main gateway server binary entrypoint
-│   └── sukami-bench/        # Standalone real-world benchmarking CLI tool
-├── pkg/
-│   ├── auth/                # API keys and token-bucket client rate limiting
-│   ├── cache/               # In-memory semantic cache & entity collision guard
-│   ├── config/              # Lightweight environment configuration loader
-│   ├── metrics/             # Real-time telemetry, token counts & cost tracking
-│   ├── models/              # OpenAI schema structs & ChatML models
-│   ├── optimizer/           # Pure Go token estimator & prompt pruner
-│   └── proxy/               # High-concurrency reverse proxy, streaming & provider routing
-├── web/                     # Lightweight embedded developer status dashboard (HTML/CSS)
-└── docs/                    # Architecture documentation and specifications
-```
 
 ---
 
