@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -23,7 +24,7 @@ func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, X-Upstream-Key, X-Sukami-Key")
 
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
@@ -34,21 +35,39 @@ func corsMiddleware(next http.Handler) http.Handler {
 }
 
 func main() {
-	// 0. Load local environment configuration if present
+	// 0. Parse CLI Flags (Priority: CLI Flag > Environment Variable > Default)
+	portFlag := flag.String("port", "", "Port to run the gateway on (default: $PORT or 8080)")
+	upstreamFlag := flag.String("upstream", "", "Upstream LLM API endpoint (default: $UPSTREAM_URL or https://api.openai.com)")
+	flag.StringVar(portFlag, "p", "", "Shorthand for --port")
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Sukami AI Token Optimization Gateway\n\nUsage:\n  sukami [flags]\n\nFlags:\n")
+		flag.PrintDefaults()
+	}
+	flag.Parse()
+
+	// Optional local environment file
 	_ = config.LoadEnv(".env")
 
-	// 1. Initialize structured JSON logging
+	// 1. Initialize structured logging
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		Level: slog.LevelInfo,
 	}))
 	slog.SetDefault(logger)
 
-	port := os.Getenv("PORT")
+	// Resolve Port (Flag > Env > Default 8080)
+	port := *portFlag
+	if port == "" {
+		port = os.Getenv("PORT")
+	}
 	if port == "" {
 		port = "8080"
 	}
 
-	upstreamURL := os.Getenv("UPSTREAM_URL")
+	// Resolve Upstream URL (Flag > Env > Default Provider)
+	upstreamURL := *upstreamFlag
+	if upstreamURL == "" {
+		upstreamURL = os.Getenv("UPSTREAM_URL")
+	}
 	if upstreamURL == "" {
 		if os.Getenv("GROQ_API_KEY") != "" {
 			upstreamURL = "https://api.groq.com/openai"
