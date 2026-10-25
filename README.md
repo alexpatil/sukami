@@ -16,7 +16,7 @@
 [Integration](#-integration) •
 [Providers](#-supported-providers) •
 [Benchmark](#-measured-benchmark) •
-[Contributing](CONTRIBUTING.md)
+[Community](#-community--contact)
 
 </div>
 
@@ -148,6 +148,16 @@ go vet ./...
 # Build standalone production binary
 go build -o bin/sukami ./cmd/sukami
 ```
+
+---
+
+## 💬 Community & Contact
+
+Have questions, feedback, or ideas? Reach out:
+
+- **Bug Reports & Features**: Open an [Issue](https://github.com/alexpatil/sukami/issues)
+- **Discussions & Feedback**: Join our [GitHub Discussions](https://github.com/alexpatil/sukami/discussions)
+- **Maintainer**: Ganesh Shinde ([codingpenin@gmail.com](mailto:codingpenin@gmail.com))
 
 ---
 
