@@ -2,8 +2,8 @@
 
 # ⚡ Sukami
 
-**High-Performance AI Token Optimization Gateway & Reverse Proxy**  
-*Reduce LLM latency and token consumption at the network layer with zero changes to your code.*
+**High-Performance AI Gateway & Token Optimizer in Pure Go**  
+*Cut LLM costs and latency at the network layer with zero code changes.*
 
 [![Go Version](https://img.shields.io/badge/Go-1.27+-00ADD8?style=flat&logo=go)](https://golang.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
