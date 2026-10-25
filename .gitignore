@@ -29,3 +29,10 @@ web/dist/
 
 # Logs
 *.log
+
+# AI Agent & Assistant Rules (Local Only)
+.agents/
+.agent/
+AGENTS.md
+GEMINI.md
+.gemini/
