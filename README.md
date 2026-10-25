@@ -58,7 +58,7 @@ The gateway and developer dashboard will be immediately active at **`http://loca
 
 ## 🔌 Integration
 
-Sukami is a **100% drop-in replacement** for the OpenAI API. Simply set your client's `base_url` to `http://localhost:8080/v1`:
+Sukami is a **100% drop-in replacement** for the OpenAI API. Simply point your existing client's `base_url` to `http://localhost:8080/v1`:
 
 ### Python
 ```python
@@ -66,12 +66,11 @@ from openai import OpenAI
 
 client = OpenAI(
     base_url="http://localhost:8080/v1",
-    api_key="your-api-key",  # OpenAI, Groq, or OpenRouter API key
-    default_headers={"X-Provider": "groq"}  # Optional: switch to groq, openrouter, deepseek, ollama
+    api_key="your-api-key"
 )
 
 response = client.chat.completions.create(
-    model="llama-3.3-70b-versatile",  # Or gpt-4o, claude-3.5-sonnet, etc.
+    model="gpt-4o",  # or "llama-3.3-70b-versatile", "deepseek-chat"
     messages=[{"role": "user", "content": "Explain raft consensus in 3 bullet points"}]
 )
 print(response.choices[0].message.content)
@@ -83,12 +82,11 @@ import OpenAI from "openai";
 
 const client = new OpenAI({
   baseURL: "http://localhost:8080/v1",
-  apiKey: process.env.GROQ_API_KEY,
-  defaultHeaders: { "X-Provider": "groq" }, // Optional: dynamic provider routing
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
 const response = await client.chat.completions.create({
-  model: "llama-3.3-70b-versatile",
+  model: "gpt-4o",
   messages: [{ role: "user", content: "Explain raft consensus in 3 bullet points" }],
 });
 ```
@@ -96,29 +94,27 @@ const response = await client.chat.completions.create({
 ### cURL
 ```bash
 curl http://localhost:8080/v1/chat/completions \
-  -H "Authorization: Bearer $GROQ_API_KEY" \
-  -H "X-Provider: groq" \
+  -H "Authorization: Bearer $OPENAI_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "llama-3.3-70b-versatile",
+    "model": "gpt-4o",
     "messages": [{"role": "user", "content": "Explain raft consensus in 3 bullet points"}]
   }'
 ```
 
 ---
 
-## 🌐 Providers & Routing
+## 🌐 Providers & Automatic Routing
 
-Sukami forwards requests transparently to any OpenAI-compatible provider with no hardcoded model restrictions:
+Sukami automatically inspects the **model name** and routes requests to the right provider with **zero custom headers required**:
 
-| Provider | Supported Models | Dynamic Routing Method |
-| :--- | :--- | :--- |
-| **OpenRouter** | 300+ models (Claude 3.5, Gemini 2.0, DeepSeek R1, Llama 3.3) | Header `X-Provider: openrouter` or `openrouter/<model>` |
-| **Groq Cloud** | Ultra-fast LPU models (`llama-3.3-70b`, `mixtral-8x7b`) | Header `X-Provider: groq` |
-| **OpenAI** | All official models (`gpt-4o`, `gpt-4o-mini`, `o1`, `gpt-4-turbo`) | Header `X-Provider: openai` (Default) |
-| **DeepSeek** | `deepseek-chat` (V3), `deepseek-reasoner` (R1) | Header `X-Provider: deepseek` or `deepseek/<model>` |
-| **Ollama / vLLM** | Local models (`llama3.2`, `mistral`, `deepseek-coder`) | Header `X-Provider: ollama` or `X-Upstream-Url: http://localhost:11434/v1` |
-| **Custom Endpoints** | Any OpenAI-compatible host (Together, Fireworks, Mistral) | Header `X-Upstream-Url: https://...` |
+| Provider | Supported Models | Automatic Routing Trigger | Optional Header Override |
+| :--- | :--- | :--- | :--- |
+| **OpenAI** | `gpt-4o`, `gpt-4o-mini`, `o1`, `gpt-4-turbo` | Default / `gpt-*` models | `X-Provider: openai` |
+| **Groq Cloud** | `llama-3.3-70b-versatile`, `mixtral-8x7b` | `llama*` or `mixtral*` models | `X-Provider: groq` |
+| **DeepSeek** | `deepseek-chat` (V3), `deepseek-reasoner` (R1) | `deepseek*` models | `X-Provider: deepseek` |
+| **OpenRouter** | 300+ models (Claude 3.5, Gemini 2.0, Llama 3.3) | `claude*`, `gemini*`, or `openrouter/*` | `X-Provider: openrouter` |
+| **Ollama / Local** | Local models (`llama3.2`, `mistral`, `deepseek`) | Default port `11434` or custom URL | `X-Upstream-Url: http://...` |
 
 ---
 
