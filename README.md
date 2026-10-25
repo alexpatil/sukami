@@ -24,13 +24,12 @@
 
 ## 💡 Key Features
 
-- **Transparent Prompt Pruning**: Strips redundant conversational fluff, pleasantries, and excessive whitespace using pure Go text optimization without altering prompt semantics or code integrity.
-- **In-Memory Semantic Caching**: Serves semantically equivalent queries directly from cache in `<10ms` with an Entity Collision Guard (strictly distinguishes distinct entities like Docker vs. Kubernetes).
-- **Tenant Cache Isolation**: Namespaces cache entries per API key to ensure zero cross-tenant data leaks.
-- **Dynamic Multi-Provider Routing**: Switch providers dynamically per-request via headers (`X-Provider`, `X-Upstream-Url`) or model prefixes across OpenRouter, Groq, OpenAI, DeepSeek, and local Ollama/vLLM.
-- **Real-Time Streaming**: Native Server-Sent Events (SSE) streaming with immediate chunk flushing.
-- **Enterprise Concurrency**: Connection-pooled HTTP transport (1,000 idle conns), 10MB request body limits, Slowloris protection, and graceful shutdown.
-- **Zero Dependencies**: 100% pure Go standard library binary (~10MB Alpine container, zero Node.js).
+- ✂️ **Transparent Prompt Pruning**: Cuts 20–35% of prompt tokens by stripping conversational fluff and redundant whitespace while preserving code blocks, markdown, and original semantics.
+- ⚡ **Sub-10ms Semantic Caching**: Serves semantically equivalent prompts instantly from memory with an Entity Collision Guard (prevents false positives like Docker vs. Kubernetes).
+- 🔄 **Smart Model Routing**: Automatically directs queries to OpenAI, Groq, DeepSeek, OpenRouter, or local Ollama based on the requested model name.
+- 🔒 **Multi-Tenant Isolation**: Namespaces cache entries per API key to guarantee zero cross-tenant data leakage.
+- 🌊 **Native SSE Streaming**: Real-time token streaming with immediate HTTP chunk flushing and minimal time-to-first-token (TTFT).
+- 🚀 **Zero Dependencies**: 100% pure Go standard library. Compiles to a single static binary or a ~10MB minimal Docker container.
 
 ---
 
