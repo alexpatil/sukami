@@ -3,183 +3,690 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sukami AI • Open Source Token Optimization Gateway</title>
+  <title>Sukami AI • Developer Gateway & Token Optimizer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg: #090d16;
-      --card: #111827;
-      --border: rgba(255, 255, 255, 0.08);
+      --bg: #030712;
+      --card-bg: rgba(17, 24, 39, 0.75);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --card-hover-border: rgba(56, 189, 248, 0.3);
       --primary: #38bdf8;
-      --accent: #10b981;
+      --primary-glow: rgba(56, 189, 248, 0.15);
+      --success: #10b981;
+      --success-glow: rgba(16, 185, 129, 0.15);
       --text: #f8fafc;
       --text-muted: #94a3b8;
+      --text-dim: #64748b;
     }
+
     * { box-sizing: border-box; margin: 0; padding: 0; }
+
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      background: var(--bg);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: radial-gradient(circle at 50% 0%, #0f172a 0%, #030712 70%);
       color: var(--text);
+      min-height: 100vh;
       line-height: 1.5;
-      padding: 24px;
+      padding: 32px 20px;
+      -webkit-font-smoothing: antialiased;
     }
-    .container { max-width: 1100px; margin: 0 auto; }
+
+    .container {
+      max-width: 1140px;
+      margin: 0 auto;
+    }
+
+    /* Header */
     header {
       display: flex;
       justify-content: space-between;
       align-items: center;
       padding-bottom: 24px;
-      border-bottom: 1px solid var(--border);
-      margin-bottom: 24px;
+      border-bottom: 1px solid var(--card-border);
+      margin-bottom: 32px;
+      flex-wrap: wrap;
+      gap: 16px;
     }
-    .brand { display: flex; align-items: center; gap: 12px; }
-    .brand-logo {
-      width: 38px; height: 38px; border-radius: 8px;
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 10px;
       background: linear-gradient(135deg, #0284c7, #38bdf8);
-      display: flex; align-items: center; justify-content: center;
-      font-weight: 800; font-size: 1.2rem; color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 1.3rem;
+      color: #fff;
+      box-shadow: 0 0 20px var(--primary-glow);
     }
-    .brand-title { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; }
-    .brand-subtitle { font-size: 0.8rem; color: var(--text-muted); }
-    .badge {
-      display: inline-flex; align-items: center; gap: 6px;
-      padding: 6px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600;
-      background: rgba(16, 185, 129, 0.1); color: var(--accent); border: 1px solid rgba(16, 185, 129, 0.2);
+
+    .brand-text h1 {
+      font-size: 1.35rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: #fff;
     }
-    .badge-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px; }
-    .card {
-      background: var(--card); border: 1px solid var(--border);
-      border-radius: 12px; padding: 20px;
+
+    .brand-text p {
+      font-size: 0.85rem;
+      color: var(--text-muted);
     }
-    .card-title { font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; margin-bottom: 8px; }
-    .card-value { font-size: 1.75rem; font-weight: 700; color: var(--text); }
-    .card-sub { font-size: 0.75rem; color: var(--primary); margin-top: 4px; }
-    .section-title { font-size: 1rem; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
-    .table-container { overflow-x: auto; background: var(--card); border: 1px solid var(--border); border-radius: 12px; }
-    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; text-align: left; }
-    th { padding: 12px 16px; color: var(--text-muted); border-bottom: 1px solid var(--border); font-weight: 600; }
-    td { padding: 12px 16px; border-bottom: 1px solid var(--border); }
-    tr:last-child td { border-bottom: none; }
-    .tag { padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
-    .tag-cache { background: rgba(56, 189, 248, 0.1); color: var(--primary); }
-    .tag-miss { background: rgba(148, 163, 184, 0.1); color: var(--text-muted); }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      background: rgba(16, 185, 129, 0.08);
+      color: var(--success);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+    }
+
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+      box-shadow: 0 0 8px var(--success);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.85); }
+    }
+
+    /* Metric Cards */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+
+    .metric-card {
+      background: var(--card-bg);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 22px;
+      transition: all 0.2s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .metric-card:hover {
+      border-color: var(--card-hover-border);
+      transform: translateY(-2px);
+    }
+
+    .metric-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    .metric-value {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      color: #fff;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .metric-sub {
+      font-size: 0.8rem;
+      color: var(--primary);
+      margin-top: 6px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* Section Boxes */
+    .section-card {
+      background: var(--card-bg);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 24px;
+      margin-bottom: 32px;
+    }
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .section-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .section-desc {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+      max-width: 650px;
+    }
+
+    /* Playground / Sandbox */
+    .sandbox-textarea {
+      width: 100%;
+      background: rgba(3, 7, 18, 0.85);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 14px 16px;
+      color: #fff;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.9rem;
+      line-height: 1.6;
+      resize: vertical;
+      min-height: 100px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .sandbox-textarea:focus {
+      border-color: var(--primary);
+    }
+
+    .sandbox-actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 14px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #0284c7, #38bdf8);
+      color: #030712;
+      font-weight: 600;
+      font-size: 0.85rem;
+      padding: 10px 18px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: opacity 0.2s;
+    }
+
+    .btn-primary:hover {
+      opacity: 0.9;
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-muted);
+      font-weight: 500;
+      font-size: 0.85rem;
+      padding: 10px 16px;
+      border-radius: 8px;
+      border: 1px solid var(--card-border);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+    }
+
+    /* Comparison Result Box */
+    .sandbox-result {
+      margin-top: 18px;
+      background: rgba(3, 7, 18, 0.95);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      border-radius: 10px;
+      padding: 18px;
+      display: none;
+    }
+
+    .sandbox-result.active {
+      display: block;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .result-stats-bar {
+      display: flex;
+      gap: 18px;
+      margin-bottom: 14px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--card-border);
+      font-size: 0.85rem;
+      flex-wrap: wrap;
+    }
+
+    .stat-pill {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .stat-pill strong {
+      color: var(--text);
+    }
+
+    .pill-saved {
+      color: var(--success);
+      font-weight: 700;
+    }
+
+    .result-text {
+      font-size: 0.9rem;
+      color: #cbd5e1;
+      line-height: 1.6;
+      background: rgba(255, 255, 255, 0.02);
+      padding: 12px;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    /* Integration Code Tabs */
+    .tabs-header {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+      border-bottom: 1px solid var(--card-border);
+      padding-bottom: 8px;
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      font-weight: 600;
+      padding: 8px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .tab-btn.active {
+      background: rgba(56, 189, 248, 0.1);
+      color: var(--primary);
+    }
+
+    .code-container {
+      position: relative;
+    }
+
     .code-box {
-      background: #060911; border: 1px solid var(--border); border-radius: 8px;
-      padding: 16px; font-family: monospace; font-size: 0.85rem; color: #cbd5e1;
-      overflow-x: auto; margin-top: 12px;
+      background: #020617;
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 18px 20px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      color: #cbd5e1;
+      line-height: 1.6;
+      overflow-x: auto;
     }
-    .playground-box {
-      margin-top: 24px; background: var(--card); border: 1px solid var(--border);
-      border-radius: 12px; padding: 20px;
+
+    .copy-btn {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      padding: 4px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
     }
-    textarea {
-      width: 100%; background: #060911; border: 1px solid var(--border);
-      border-radius: 8px; padding: 12px; color: #fff; font-size: 0.85rem;
-      resize: vertical; min-height: 80px; margin-top: 10px; font-family: inherit;
+
+    .copy-btn:hover {
+      background: rgba(255, 255, 255, 0.15);
+      color: #fff;
     }
-    .btn {
-      background: var(--primary); color: #000; border: none; padding: 8px 16px;
-      border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.85rem; margin-top: 10px;
+
+    /* Live Activity Table */
+    .table-wrapper {
+      overflow-x: auto;
+      border-radius: 10px;
+      border: 1px solid var(--card-border);
+      background: rgba(3, 7, 18, 0.5);
     }
-    .btn:hover { opacity: 0.9; }
-    .result-box { margin-top: 12px; padding: 12px; background: rgba(56, 189, 248, 0.05); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 8px; font-size: 0.85rem; display: none; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+      text-align: left;
+    }
+
+    th {
+      padding: 12px 16px;
+      color: var(--text-muted);
+      font-weight: 600;
+      border-bottom: 1px solid var(--card-border);
+      background: rgba(17, 24, 39, 0.4);
+      white-space: nowrap;
+    }
+
+    td {
+      padding: 12px 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      white-space: nowrap;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    .tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .tag-cache {
+      background: rgba(56, 189, 248, 0.12);
+      color: var(--primary);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+    }
+
+    .tag-miss {
+      background: rgba(148, 163, 184, 0.08);
+      color: var(--text-muted);
+      border: 1px solid rgba(148, 163, 184, 0.15);
+    }
+
+    .model-badge {
+      font-family: 'JetBrains Mono', monospace;
+      color: #e2e8f0;
+      font-size: 0.8rem;
+    }
+
+    footer {
+      text-align: center;
+      padding-top: 16px;
+      color: var(--text-dim);
+      font-size: 0.8rem;
+    }
+
+    footer a {
+      color: var(--primary);
+      text-decoration: none;
+    }
+
+    footer a:hover {
+      text-decoration: underline;
+    }
   </style>
 </head>
 <body>
   <div class="container">
+    <!-- Header -->
     <header>
       <div class="brand">
-        <div class="brand-logo">S</div>
-        <div>
-          <div class="brand-title">Sukami AI Gateway</div>
-          <div class="brand-subtitle">Open-Source Token Optimization Reverse Proxy</div>
+        <div class="brand-icon">S</div>
+        <div class="brand-text">
+          <h1>Sukami Gateway</h1>
+          <p>Open-Source AI Token Optimization & Reverse Proxy</p>
         </div>
       </div>
       <div>
-        <span class="badge"><span class="badge-dot"></span> Live • Port 8080</span>
+        <span class="status-badge">
+          <span class="pulse-dot"></span>
+          Gateway Active • Port 8080
+        </span>
       </div>
     </header>
 
-    <div class="grid">
-      <div class="card">
-        <div class="card-title">Total Requests</div>
-        <div class="card-value" id="val-requests">-</div>
-        <div class="card-sub">In-flight proxying</div>
+    <!-- Metrics Grid -->
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-label">Total Requests</div>
+        <div class="metric-value" id="val-requests">-</div>
+        <div class="metric-sub">Processed through gateway</div>
       </div>
-      <div class="card">
-        <div class="card-title">Tokens Saved</div>
-        <div class="card-value" id="val-saved">-</div>
-        <div class="card-sub" id="val-percent">0.0% reduction</div>
+      <div class="metric-card">
+        <div class="metric-label">Tokens Saved</div>
+        <div class="metric-value" id="val-saved">-</div>
+        <div class="metric-sub" id="val-percent">0.0% overall reduction</div>
       </div>
-      <div class="card">
-        <div class="card-title">Est. Cost Saved</div>
-        <div class="card-value" id="val-cost">$0.00</div>
-        <div class="card-sub">Based on GPT-4o rates</div>
+      <div class="metric-card">
+        <div class="metric-label">Estimated Cost Saved</div>
+        <div class="metric-value" id="val-cost">$0.00</div>
+        <div class="metric-sub">Computed against GPT-4o benchmarks</div>
       </div>
-      <div class="card">
-        <div class="card-title">Cache Hit Rate</div>
-        <div class="card-value" id="val-cache">0.0%</div>
-        <div class="card-sub">5-Layer Semantic Guard</div>
+      <div class="metric-card">
+        <div class="metric-label">Semantic Cache Hit Rate</div>
+        <div class="metric-value" id="val-cache">0.0%</div>
+        <div class="metric-sub">0ms instant memory lookups</div>
       </div>
     </div>
 
-    <div class="playground-box">
-      <div class="section-title">⚡ Instant Optimizer Test</div>
-      <p style="font-size: 0.85rem; color: var(--text-muted);">Test prompt pruning and real OpenAI tiktoken BPE token counting locally without API credits.</p>
-      <textarea id="prompt-input" placeholder="Type or paste any wordy prompt to test instant compression...">Could you please kindly help me write a function in Go that connects to PostgreSQL and downloads records concurrently? Please make sure to handle errors properly. Thank you!</textarea>
-      <button class="btn" onclick="testOptimize()">Optimize Prompt</button>
-      <div id="result-box" class="result-box"></div>
+    <!-- Live Optimizer Sandbox -->
+    <div class="section-card">
+      <div class="section-header">
+        <div>
+          <div class="section-title">⚡ Interactive Token Optimizer Sandbox</div>
+          <p class="section-desc">
+            Test prompt compression live. Sukami removes conversational fluff, collapses unnecessary formatting, preserves code blocks, and calculates exact OpenAI Byte-Pair Encoding (BPE) savings.
+          </p>
+        </div>
+        <button class="btn-secondary" onclick="loadSamplePrompt()">Load Sample Prompt</button>
+      </div>
+
+      <textarea id="prompt-input" class="sandbox-textarea" placeholder="Type or paste any prompt to analyze token savings...">Could you please kindly help me write a function in Go that connects to PostgreSQL and downloads records concurrently? Please make sure to handle errors properly and include inline comments. Thank you so much!</textarea>
+
+      <div class="sandbox-actions">
+        <button class="btn-primary" onclick="testOptimize()">⚡ Optimize Prompt</button>
+        <span style="font-size: 0.8rem; color: var(--text-muted);">Zero API keys required • Computed locally via Go engine</span>
+      </div>
+
+      <div id="sandbox-result" class="sandbox-result">
+        <div class="result-stats-bar">
+          <span class="stat-pill">Original: <strong id="res-orig">-</strong> tokens</span>
+          <span class="stat-pill">Optimized: <strong id="res-opt">-</strong> tokens</span>
+          <span class="stat-pill pill-saved" id="res-saved">+0 tokens saved (0.0%)</span>
+        </div>
+        <div style="font-size: 0.75rem; text-transform: uppercase; font-weight: 600; color: var(--text-muted); margin-bottom: 6px;">Pruned Prompt:</div>
+        <div class="result-text" id="res-text"></div>
+      </div>
     </div>
 
-    <div style="margin-top: 24px;">
-      <div class="section-title">📊 Live Activity Log</div>
-      <div class="table-container">
+    <!-- Live Activity Log -->
+    <div class="section-card">
+      <div class="section-header">
+        <div>
+          <div class="section-title">📊 Live Traffic Inspector</div>
+          <p class="section-desc">Real-time log of chat completions routed through the local proxy.</p>
+        </div>
+      </div>
+
+      <div class="table-wrapper">
         <table>
           <thead>
             <tr>
-              <th>Time</th>
+              <th>Timestamp</th>
               <th>Model</th>
               <th>Prompt Preview</th>
-              <th>Orig</th>
+              <th>Original</th>
               <th>Saved</th>
-              <th>Status</th>
+              <th>Cache Status</th>
               <th>Latency</th>
             </tr>
           </thead>
           <tbody id="log-body">
-            <tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Listening for requests...</td></tr>
+            <tr>
+              <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 24px;">
+                Listening for incoming requests on <code>http://localhost:8080/v1</code>...
+              </td>
+            </tr>
           </tbody>
         </table>
       </div>
     </div>
 
-    <div style="margin-top: 24px;">
-      <div class="section-title">🔌 1-Line Drop-In Integration</div>
-      <div class="code-box">from openai import OpenAI
+    <!-- 1-Line Drop-In Integration -->
+    <div class="section-card">
+      <div class="section-header">
+        <div>
+          <div class="section-title">🔌 1-Line Drop-In Integration</div>
+          <p class="section-desc">
+            Sukami is a transparent OpenAI-compatible proxy. Simply redirect your client's <code>base_url</code> to begin saving tokens immediately.
+          </p>
+        </div>
+      </div>
 
-# Drop-in replacement: redirect base_url to local Sukami Gateway
-client = OpenAI(
-    base_url="http://localhost:8080/v1",
-    api_key="sk-proj-your-api-key" # Or pass server .env key
-)
+      <div class="tabs-header">
+        <button class="tab-btn active" onclick="switchTab('python')">Python (OpenAI SDK)</button>
+        <button class="tab-btn" onclick="switchTab('node')">Node.js (OpenAI SDK)</button>
+        <button class="tab-btn" onclick="switchTab('curl')">cURL / Raw HTTP</button>
+      </div>
 
-response = client.chat.completions.create(
-    model="gpt-4o",
-    messages=[{"role": "user", "content": "Explain distributed systems architecture"}]
-)
-print(response.choices[0].message.content)</div>
+      <div class="code-container">
+        <button class="copy-btn" onclick="copySnippet()">Copy Code</button>
+        <pre class="code-box"><code id="code-snippet"></code></pre>
+      </div>
     </div>
+
+    <!-- Footer -->
+    <footer>
+      Sukami AI Token Optimizer • Open-Source MIT License • <a href="https://github.com/alexpatil/sukami" target="_blank" rel="noopener">GitHub Repository</a>
+    </footer>
   </div>
 
   <script>
+    const snippets = {
+      python: `from openai import OpenAI
+
+# 1. Point your client to Sukami Gateway (Port 8080)
+client = OpenAI(
+    base_url="http://localhost:8080/v1",
+    api_key="sk-proj-your-openai-or-groq-key"  # Or set in server .env
+)
+
+# 2. Call any model as normal — Sukami prunes prompts & caches responses automatically
+response = client.chat.completions.create(
+    model="gpt-4o",
+    messages=[{"role": "user", "content": "Explain distributed consensus in Go"}]
+)
+
+print(response.choices[0].message.content)`,
+
+      node: `import OpenAI from 'openai';
+
+// 1. Point your client to Sukami Gateway (Port 8080)
+const client = new OpenAI({
+  baseURL: 'http://localhost:8080/v1',
+  apiKey: process.env.OPENAI_API_KEY || 'sk-proj-your-api-key',
+});
+
+// 2. Call any model as normal
+const response = await client.chat.completions.create({
+  model: 'gpt-4o',
+  messages: [{ role: 'user', content: 'Explain distributed consensus in Go' }],
+});
+
+console.log(response.choices[0].message.content);`,
+
+      curl: `# 1. Send any standard OpenAI-compatible JSON payload to Sukami Gateway
+curl http://localhost:8080/v1/chat/completions \\
+  -H "Content-Type: application/json" \\
+  -H "Authorization: Bearer sk-proj-your-api-key" \\
+  -d '{
+    "model": "gpt-4o",
+    "messages": [{"role": "user", "content": "Explain distributed consensus in Go"}]
+  }'`
+    };
+
+    let currentTab = 'python';
+
+    function switchTab(tab) {
+      currentTab = tab;
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.innerText.toLowerCase().includes(tab));
+      });
+      document.getElementById('code-snippet').innerText = snippets[tab];
+    }
+
+    function copySnippet() {
+      const code = snippets[currentTab];
+      navigator.clipboard.writeText(code);
+      const btn = document.querySelector('.copy-btn');
+      btn.innerText = 'Copied!';
+      setTimeout(() => { btn.innerText = 'Copy Code'; }, 1500);
+    }
+
+    function loadSamplePrompt() {
+      document.getElementById('prompt-input').value = `Could you please kindly help me write a function in Go that takes a list of URLs and downloads them concurrently using goroutines? 
+
+Please make sure to handle errors properly and kindly include inline comments explaining how the worker pool works. I would really appreciate it if you could also ensure that the code compiles cleanly. Thank you so much!`;
+      testOptimize();
+    }
+
+    async function testOptimize() {
+      const prompt = document.getElementById('prompt-input').value.trim();
+      if (!prompt) return;
+
+      try {
+        const res = await fetch('/api/playground', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt })
+        });
+        const data = await res.json();
+
+        document.getElementById('res-orig').innerText = data.original_tokens;
+        document.getElementById('res-opt').innerText = data.optimized_tokens;
+        document.getElementById('res-saved').innerText = `+${data.saved_tokens} tokens saved (${data.savings_percent.toFixed(1)}%)`;
+        document.getElementById('res-text').innerText = data.optimized_text;
+        document.getElementById('sandbox-result').classList.add('active');
+      } catch (err) {
+        alert("Optimization request error: " + err.message);
+      }
+    }
+
     async function fetchMetrics() {
       try {
         const res = await fetch('/api/metrics');
         if (!res.ok) return;
         const data = await res.json();
-        document.getElementById('val-requests').innerText = data.total_requests || 0;
+
+        document.getElementById('val-requests').innerText = (data.total_requests || 0).toLocaleString();
         document.getElementById('val-saved').innerText = (data.saved_tokens || 0).toLocaleString();
-        document.getElementById('val-percent').innerText = `${(data.savings_percent || 0).toFixed(1)}% reduction`;
+        document.getElementById('val-percent').innerText = `${(data.savings_percent || 0).toFixed(1)}% overall reduction`;
         document.getElementById('val-cost').innerText = `$${(data.cost_saved_usd || 0).toFixed(4)}`;
         document.getElementById('val-cache').innerText = `${(data.cache_hit_percent || 0).toFixed(1)}%`;
 
@@ -188,38 +695,17 @@ print(response.choices[0].message.content)</div>
           tbody.innerHTML = data.recent_requests.slice(0, 10).map(r => `
             <tr>
               <td>${new Date(r.timestamp).toLocaleTimeString()}</td>
-              <td><code>${r.model}</code></td>
-              <td>${escapeHtml(r.prompt_preview || '-')}</td>
+              <td><span class="model-badge">${escapeHtml(r.model)}</span></td>
+              <td style="color: #cbd5e1; max-width: 320px; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(r.prompt_preview || '-')}</td>
               <td>${r.original_tokens}</td>
-              <td style="color: var(--accent); font-weight: 600;">+${r.saved_tokens}</td>
-              <td><span class="tag ${r.cache_hit ? 'tag-cache' : 'tag-miss'}">${r.cache_hit ? 'CACHE' : 'MISS'}</span></td>
-              <td>${r.latency_ms}ms</td>
+              <td style="color: var(--success); font-weight: 600;">+${r.saved_tokens}</td>
+              <td><span class="tag ${r.cache_hit ? 'tag-cache' : 'tag-miss'}">${r.cache_hit ? 'CACHE HIT' : 'PROXY MISS'}</span></td>
+              <td style="color: var(--text-muted); font-family: 'JetBrains Mono', monospace;">${r.latency_ms}ms</td>
             </tr>
           `).join('');
         }
       } catch (e) {
-        console.error("Metrics fetch error", e);
-      }
-    }
-
-    async function testOptimize() {
-      const prompt = document.getElementById('prompt-input').value.trim();
-      if (!prompt) return;
-      try {
-        const res = await fetch('/api/playground', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt })
-        });
-        const data = await res.json();
-        const box = document.getElementById('result-box');
-        box.style.display = 'block';
-        box.innerHTML = `<strong>Optimized Result:</strong> ${escapeHtml(data.optimized_text)}<br><br>` +
-          `<strong>Original Tokens:</strong> ${data.original_tokens} &nbsp;|&nbsp; ` +
-          `<strong>Optimized:</strong> ${data.optimized_tokens} &nbsp;|&nbsp; ` +
-          `<strong style="color: #10b981;">Saved: ${data.saved_tokens} tokens (${data.savings_percent.toFixed(1)}%)</strong>`;
-      } catch (e) {
-        alert("Optimization test error: " + e.message);
+        console.error("Failed to refresh metrics", e);
       }
     }
 
@@ -228,6 +714,8 @@ print(response.choices[0].message.content)</div>
       return text.replace(/[&<>"']/g, m => map[m]);
     }
 
+    // Initialize
+    switchTab('python');
     fetchMetrics();
     setInterval(fetchMetrics, 3000);
   </script>
