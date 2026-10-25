@@ -36,25 +36,20 @@
 
 ## ⚡ Quickstart
 
-Sukami is a lightweight, single-binary reverse proxy with an embedded developer status dashboard.
+Get Sukami running locally in seconds:
 
-### Option A: Pure Go (Zero Dependencies)
+### 1. Run with Go (Zero Dependencies)
 ```bash
-# Clone and run with Go
 git clone https://github.com/alexpatil/sukami.git
 cd sukami
 go run ./cmd/sukami
 ```
 
-### Option B: Docker Compose
+### 2. Run with Docker
 ```bash
+git clone https://github.com/alexpatil/sukami.git
+cd sukami
 docker compose up -d
-```
-
-### Option C: Docker Container
-```bash
-docker build -t sukami .
-docker run -p 8080:8080 sukami
 ```
 
 The gateway and developer dashboard will be immediately active at **`http://localhost:8080`**.
