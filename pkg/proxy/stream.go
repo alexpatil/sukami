@@ -17,6 +17,7 @@ func (h *Handler) respondSimulated(
 	chatReq models.ChatCompletionRequest,
 	comp optimizer.CompressionResult,
 	cacheKey string,
+	cacheModel string,
 	reqID string,
 	userPrompt string,
 	start time.Time,
@@ -46,8 +47,8 @@ func (h *Handler) respondSimulated(
 	}
 
 	respJSON, _ := json.Marshal(respObj)
-	h.cache.SetSemantic(cacheKey, userPrompt, respJSON, chatReq.Model)
-	h.recordMissMetric(reqID, chatReq.Model, userPrompt, comp, start, "200 OK (Simulated)")
+	h.cache.SetSemantic(cacheKey, userPrompt, respJSON, cacheModel)
+	h.recordMissMetric(reqID, chatReq.Model, userPrompt, comp, start, "200 OK (Simulated)", respJSON)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("X-Cache", "MISS")
@@ -94,12 +95,6 @@ func (h *Handler) streamCachedResponse(w http.ResponseWriter, r *http.Request, j
 	ctx := r.Context()
 
 	for i, word := range words {
-		select {
-		case <-ctx.Done():
-			return // Client disconnected: immediately abort to save bandwidth
-		default:
-		}
-
 		suffix := " "
 		if i == len(words)-1 {
 			suffix = ""
@@ -121,7 +116,13 @@ func (h *Handler) streamCachedResponse(w http.ResponseWriter, r *http.Request, j
 		b, _ := json.Marshal(chunk)
 		fmt.Fprintf(w, "data: %s\n\n", b)
 		flusher.Flush()
-		time.Sleep(15 * time.Millisecond)
+
+		// Context-cancellable delay instead of blocking time.Sleep
+		select {
+		case <-ctx.Done():
+			return // Client disconnected
+		case <-time.After(5 * time.Millisecond):
+		}
 	}
 
 	fmt.Fprintf(w, "data: [DONE]\n\n")

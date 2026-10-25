@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -15,7 +16,7 @@ type CacheEntry struct {
 	Vector       Vector
 	ExpiresAt    time.Time
 	CachedAt     time.Time
-	Hits         int
+	Hits         int64
 	Model        string
 }
 
@@ -55,37 +56,31 @@ func ComputeHash(model, prompt string) string {
 	return hex.EncodeToString(hasher.Sum(nil))
 }
 
-// Get checks exact or normalized hash key.
+// Get checks exact or normalized hash key concurrently using RLock.
 func (c *MemoryCache) Get(key string) ([]byte, bool) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 
 	entry, found := c.entries[key]
-	if !found {
-		c.misses++
+	if !found || time.Now().After(entry.ExpiresAt) {
+		atomic.AddUint64(&c.misses, 1)
 		return nil, false
 	}
 
-	if time.Now().After(entry.ExpiresAt) {
-		delete(c.entries, key)
-		c.misses++
-		return nil, false
-	}
-
-	entry.Hits++
-	c.hits++
+	atomic.AddInt64(&entry.Hits, 1)
+	atomic.AddUint64(&c.hits, 1)
 	return entry.ResponseJSON, true
 }
 
-// GetSemantic looks up responses using exact hash first, then cosine similarity matching.
+// GetSemantic looks up responses using exact hash first, then parallel cosine similarity matching.
 func (c *MemoryCache) GetSemantic(model, prompt string, threshold float64) ([]byte, bool, float64) {
 	exactKey := ComputeHash(model, prompt)
 	if data, ok := c.Get(exactKey); ok {
 		return data, true, 1.0
 	}
 
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 
 	queryVec := BuildSemanticVector(prompt)
 	var bestMatch *CacheEntry
@@ -120,12 +115,12 @@ func (c *MemoryCache) GetSemantic(model, prompt string, threshold float64) ([]by
 	}
 
 	if bestMatch != nil {
-		bestMatch.Hits++
-		c.hits++
+		atomic.AddInt64(&bestMatch.Hits, 1)
+		atomic.AddUint64(&c.hits, 1)
 		return bestMatch.ResponseJSON, true, highestSimilarity
 	}
 
-	c.misses++
+	atomic.AddUint64(&c.misses, 1)
 	return nil, false, 0.0
 }
 

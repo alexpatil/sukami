@@ -44,6 +44,14 @@ var knownProviders = map[string]ProviderConfig{
 	},
 }
 
+// modelProviderHints maps common model name substrings to their provider for auto-routing.
+var modelProviderHints = map[string]string{
+	"claude":  "openrouter",
+	"gemini":  "openrouter",
+	"llama":   "groq",
+	"mixtral": "groq",
+}
+
 // FetchModelsRequest specifies the provider and credentials to query models from.
 type FetchModelsRequest struct {
 	Provider    string `json:"provider"`
@@ -88,6 +96,15 @@ func (h *Handler) resolveUpstreamTarget(r *http.Request, model string) string {
 	}
 	if strings.HasPrefix(lowerModel, "deepseek/") || strings.HasPrefix(lowerModel, "deepseek-") {
 		return buildCompletionsURL(knownProviders["deepseek"].BaseURL)
+	}
+
+	// 3b. Model name hints for common models without provider prefix
+	for hint, providerID := range modelProviderHints {
+		if strings.Contains(lowerModel, hint) {
+			if p, ok := knownProviders[providerID]; ok {
+				return buildCompletionsURL(p.BaseURL)
+			}
+		}
 	}
 
 	// 4. Default server upstream

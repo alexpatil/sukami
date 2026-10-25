@@ -9,12 +9,8 @@ import (
 // Vector represents a sparse term-frequency map for semantic comparisons.
 type Vector map[string]float64
 
-var stopWords = map[string]bool{
-	"how": true, "do": true, "does": true, "did": true, "i": true, "me": true, "my": true,
-	"a": true, "an": true, "the": true, "in": true, "on": true, "at": true, "to": true,
-	"of": true, "for": true, "is": true, "are": true, "can": true, "you": true,
-	"please": true, "help": true, "write": true, "give": true, "show": true,
-}
+// stopWords references the unified boilerplate set from entities.go for consistent filtering.
+var stopWords = boilerplateWords
 
 // BuildSemanticVector constructs a clean term-frequency vector from prompt text.
 func BuildSemanticVector(text string) Vector {
@@ -26,7 +22,7 @@ func BuildSemanticVector(text string) Vector {
 
 	for _, w := range words {
 		if stopWords[w] {
-			continue // Filter out syntax noise
+			continue // Filter out boilerplate noise
 		}
 		canonical := canonicalStem(w)
 		vec[canonical] += 1.0

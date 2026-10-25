@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"os"
 	"strings"
 	"sukami/pkg/cache"
 	"sukami/pkg/metrics"
@@ -18,11 +19,16 @@ import (
 // HandleChatCompletions processes OpenAI /v1/chat/completions requests.
 func (h *Handler) HandleChatCompletions(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
-	reqID := fmt.Sprintf("req_%d", time.Now().UnixNano())
+	reqID := generateReqID()
 
-	bodyBytes, err := io.ReadAll(r.Body)
+	// Limit request body to 10MB to protect against memory-exhaustion DoS
+	bodyBytes, err := io.ReadAll(io.LimitReader(r.Body, 10<<20))
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "Failed to read request body")
+		return
+	}
+	if len(bodyBytes) >= 10<<20 {
+		writeError(w, http.StatusRequestEntityTooLarge, "Request payload exceeds 10MB limit")
 		return
 	}
 
@@ -52,40 +58,50 @@ func (h *Handler) HandleChatCompletions(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
-	// 1. Optimize input messages (Prompt pruning)
-	comp := optimizer.OptimizeMessages(chatReq.Messages)
+	// Smart Model Router: Map generic model names to active provider equivalents
+	if strings.Contains(h.upstreamURL, "groq.com") && (chatReq.Model == "gpt-4o" || chatReq.Model == "gpt-4" || chatReq.Model == "") {
+		chatReq.Model = "llama-3.3-70b-versatile"
+		w.Header().Set("X-Sukami-Mapped-Model", "llama-3.3-70b-versatile")
+	}
+
+	// 1. Optimize input messages using model-specific token rules
+	comp := optimizer.OptimizeMessagesForModel(chatReq.Model, chatReq.Messages)
 	userPrompt := extractUserPrompt(chatReq.Messages)
 	if clientKey != "" {
 		h.authStore.RecordTokenUsage(clientKey, comp.OptimizedTokens, comp.SavedTokens)
 	}
 
-	// Route generic model name to active Groq model if targeting Groq
-	if strings.Contains(h.upstreamURL, "groq.com") && (chatReq.Model == "gpt-4o" || chatReq.Model == "gpt-4" || chatReq.Model == "") {
-		chatReq.Model = "openai/gpt-oss-120b"
-	}
+	// Scope cache by tenant to prevent cross-tenant data leaks (M-6)
+	cacheModel := scopedCacheModel(clientKey, chatReq.Model)
 
 	// Build deterministic hash key for semantic cache
-	cacheKey := cache.ComputeHash(chatReq.Model, buildPromptFingerprint(comp.Messages))
+	cacheKey := cache.ComputeHash(cacheModel, buildPromptFingerprint(comp.Messages))
 
 	// 2. Check Semantic Cache (Exact Hash or Cosine Similarity > 0.85)
-	if cachedBytes, hit, sim := h.cache.GetSemantic(chatReq.Model, userPrompt, 0.85); hit {
+	if cachedBytes, hit, sim := h.cache.GetSemantic(cacheModel, userPrompt, 0.85); hit {
 		h.respondFromCache(w, r, cachedBytes, chatReq, comp, reqID, userPrompt, sim, start)
 		return
 	}
 
-	// 3. Cache Miss: apply output density optimization
-	optMessages, _ := optimizer.ApplyOutputOptimization(comp.Messages)
-	chatReq.Messages = optMessages
+	// 3. Cache Miss: apply output density optimization if opted-in
+	if r.Header.Get("X-Sukami-Density") == "true" || os.Getenv("ENABLE_OUTPUT_DENSITY") == "true" {
+		optMessages, _ := optimizer.ApplyOutputOptimization(comp.Messages)
+		chatReq.Messages = optMessages
+	}
 	authHeader := resolveUpstreamAuth(r)
 
-	// Fallback to simulated completion if no API key provided
+	// Production standard: require API key unless demo mode is explicitly enabled
 	if authHeader == "" {
-		h.respondSimulated(w, r, chatReq, comp, cacheKey, reqID, userPrompt, start)
+		if os.Getenv("SUKAMI_DEMO_MODE") == "true" {
+			h.respondSimulated(w, r, chatReq, comp, cacheKey, cacheModel, reqID, userPrompt, start)
+			return
+		}
+		writeError(w, http.StatusUnauthorized, "Missing API key. Provide Authorization: Bearer <key> in request header or set UPSTREAM_API_KEY environment variable.")
 		return
 	}
 
 	// 4. Forward upstream to OpenAI
-	h.forwardUpstream(w, r, chatReq, comp, cacheKey, reqID, userPrompt, authHeader, start)
+	h.forwardUpstream(w, r, chatReq, comp, cacheKey, cacheModel, reqID, userPrompt, authHeader, start)
 }
 
 func (h *Handler) respondFromCache(
@@ -105,17 +121,30 @@ func (h *Handler) respondFromCache(
 		statusText = fmt.Sprintf("200 OK (Semantic %d%%)", int(similarity*100))
 	}
 
+	outputSaved := 0
+	var cu struct {
+		Usage struct {
+			CompletionTokens int `json:"completion_tokens"`
+		} `json:"usage"`
+	}
+	if json.Unmarshal(cachedBytes, &cu) == nil {
+		outputSaved = cu.Usage.CompletionTokens
+	}
+
+	totalSaved := comp.OriginalTokens + outputSaved
+	costUSD, _ := metrics.CalculateSavingsUSD(chatReq.Model, comp.OriginalTokens, outputSaved)
 	h.tracker.RecordRequest(metrics.RequestRecord{
 		ID:                reqID,
 		Timestamp:         time.Now(),
 		Model:             chatReq.Model,
 		PromptPreview:     truncate(userPrompt, 60),
-		OriginalTokens:    comp.OriginalTokens,
-		SavedTokens:       comp.OriginalTokens, // 100% saved
+		OriginalTokens:    totalSaved,
+		SavedTokens:       totalSaved,
 		InputSavedTokens:  comp.OriginalTokens,
-		OutputSavedTokens: 0,
+		OutputSavedTokens: outputSaved,
 		BilledTokens:      0,
 		SavingsPercent:    100.0,
+		CostSavedUSD:      costUSD,
 		CacheHit:          true,
 		LatencyMs:         latency,
 		Status:            statusText,
@@ -140,6 +169,7 @@ func (h *Handler) forwardUpstream(
 	chatReq models.ChatCompletionRequest,
 	comp optimizer.CompressionResult,
 	cacheKey string,
+	cacheModel string,
 	reqID string,
 	userPrompt string,
 	authHeader string,
@@ -181,33 +211,30 @@ func (h *Handler) forwardUpstream(
 	w.WriteHeader(resp.StatusCode)
 
 	if chatReq.Stream {
-		io.Copy(w, resp.Body)
-		h.recordMissMetric(reqID, chatReq.Model, userPrompt, comp, start, fmt.Sprintf("%d Stream", resp.StatusCode))
+		flusher, isFlusher := w.(http.Flusher)
+		buf := make([]byte, 4096)
+		for {
+			n, readErr := resp.Body.Read(buf)
+			if n > 0 {
+				if _, writeErr := w.Write(buf[:n]); writeErr != nil {
+					break
+				}
+				if isFlusher {
+					flusher.Flush()
+				}
+			}
+			if readErr != nil {
+				break
+			}
+		}
+		h.recordMissMetric(reqID, chatReq.Model, userPrompt, comp, start, fmt.Sprintf("%d Stream", resp.StatusCode), nil)
 		return
 	}
 
 	respBytes, err := io.ReadAll(resp.Body)
 	if err == nil && resp.StatusCode == http.StatusOK {
-		h.cache.SetSemantic(cacheKey, userPrompt, respBytes, chatReq.Model)
+		h.cache.SetSemantic(cacheKey, userPrompt, respBytes, cacheModel)
 	}
 	w.Write(respBytes)
-	h.recordMissMetric(reqID, chatReq.Model, userPrompt, comp, start, fmt.Sprintf("%d OK", resp.StatusCode))
-}
-
-func (h *Handler) recordMissMetric(id, model, prompt string, comp optimizer.CompressionResult, start time.Time, status string) {
-	h.tracker.RecordRequest(metrics.RequestRecord{
-		ID:                id,
-		Timestamp:         time.Now(),
-		Model:             model,
-		PromptPreview:     truncate(prompt, 60),
-		OriginalTokens:    comp.OriginalTokens,
-		SavedTokens:       comp.SavedTokens,
-		InputSavedTokens:  comp.SavedTokens,
-		OutputSavedTokens: 0,
-		BilledTokens:      comp.OptimizedTokens,
-		SavingsPercent:    comp.SavingsPercent,
-		CacheHit:          false,
-		LatencyMs:         time.Since(start).Milliseconds(),
-		Status:            status,
-	})
+	h.recordMissMetric(reqID, chatReq.Model, userPrompt, comp, start, fmt.Sprintf("%d OK", resp.StatusCode), respBytes)
 }
