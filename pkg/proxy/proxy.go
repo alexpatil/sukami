@@ -43,7 +43,7 @@ type Handler struct {
 // NewHandler constructs a thread-safe proxy handler.
 func NewHandler(cache Cache, tracker RequestTracker, authStore auth.KeyStore, limiter *auth.RateLimiter, upstreamURL string) *Handler {
 	if upstreamURL == "" {
-		upstreamURL = "https://api.openai.com"
+		upstreamURL = DefaultUpstreamURL
 	}
 	transport := &http.Transport{
 		Proxy: http.ProxyFromEnvironment,

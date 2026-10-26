@@ -62,17 +62,13 @@ func main() {
 		port = "8080"
 	}
 
-	// Resolve Upstream URL (Flag > Env > Default Provider)
+	// Resolve Upstream URL (CLI Flag > Environment Variable > Default)
 	upstreamURL := *upstreamFlag
 	if upstreamURL == "" {
 		upstreamURL = os.Getenv("UPSTREAM_URL")
 	}
 	if upstreamURL == "" {
-		if os.Getenv("GROQ_API_KEY") != "" {
-			upstreamURL = "https://api.groq.com/openai"
-		} else {
-			upstreamURL = "https://api.openai.com"
-		}
+		upstreamURL = proxy.DefaultUpstreamURL
 	}
 
 	// 2. Initialize Core Subsystems

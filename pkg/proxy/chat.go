@@ -113,7 +113,7 @@ func (h *Handler) HandleChatCompletions(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// 4. Forward upstream to OpenAI
+	// 4. Forward upstream to resolved provider target
 	h.forwardUpstream(w, r, chatReq, comp, cacheKey, cacheModel, reqID, userPrompt, authHeader, start)
 }
 
