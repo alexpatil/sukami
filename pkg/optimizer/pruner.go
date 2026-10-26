@@ -5,12 +5,13 @@ import (
 	"regexp"
 	"strings"
 	"sukami/pkg/models"
+	"time"
 	"unicode"
 )
 
 var (
-	// Regex to isolate markdown code blocks so they are NOT pruned.
-	codeBlockRegex = regexp.MustCompile("(?s)```.*?```|`.*?`")
+	// Regex to isolate markdown code blocks (closed and unclosed) so they are NOT pruned.
+	codeBlockRegex = regexp.MustCompile("(?s)```(?:.*?```|.*)|`.*?`")
 	// Multiple spaces or tabs into a single space.
 	multiSpaceRegex = regexp.MustCompile(`[ \t]{2,}`)
 	// More than two consecutive newlines into double newlines.
@@ -71,13 +72,14 @@ func PruneText(input string) string {
 		return input
 	}
 
-	// Step 1: Protect code blocks
+	// Step 1: Protect code blocks using collision-proof placeholders
+	seed := time.Now().UnixNano()
 	var preservedBlocks []string
 
 	cleanText := codeBlockRegex.ReplaceAllStringFunc(input, func(block string) string {
 		idx := len(preservedBlocks)
 		preservedBlocks = append(preservedBlocks, block)
-		return fmt.Sprintf("__CODE_BLOCK_%d__", idx)
+		return fmt.Sprintf("\x1fSUKAMI_%d_%d\x1f", seed, idx)
 	})
 
 	// Step 2: Remove leading conversational filler from lines and sentences
@@ -104,7 +106,7 @@ func PruneText(input string) string {
 
 	// Step 4: Restore preserved code blocks intact
 	for idx, block := range preservedBlocks {
-		placeholder := fmt.Sprintf("__CODE_BLOCK_%d__", idx)
+		placeholder := fmt.Sprintf("\x1fSUKAMI_%d_%d\x1f", seed, idx)
 		cleanText = strings.Replace(cleanText, placeholder, block, 1)
 	}
 
@@ -117,14 +119,14 @@ func OptimizeMessages(messages []models.ChatMessage) CompressionResult {
 }
 
 // OptimizeMessagesForModel processes the slice of chat messages using model-specific token rules.
-// Multimodal messages (image arrays) are passed through untouched; only text content is pruned.
+// Multimodal messages (image arrays) are passed through untouched; system prompts are preserved intact.
 func OptimizeMessagesForModel(model string, messages []models.ChatMessage) CompressionResult {
 	origTokens := EstimateMessagesTokensForModel(model, messages)
 
 	optimized := make([]models.ChatMessage, len(messages))
 	for i, msg := range messages {
 		optimized[i] = msg // Copy all fields including passthrough (ToolCalls, RawContent, etc.)
-		if models.IsTextContent(msg.RawContent) {
+		if msg.Role != "system" && models.IsTextContent(msg.RawContent) {
 			optimized[i].Content = PruneText(msg.Content)
 			optimized[i].RawContent = nil // Force marshal to use pruned text Content
 		}

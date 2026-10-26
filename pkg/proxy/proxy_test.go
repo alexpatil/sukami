@@ -209,4 +209,19 @@ func TestHandlePrometheusMetrics(t *testing.T) {
 	}
 }
 
+func TestHandleChatCompletions_EmptyMessagesArray(t *testing.T) {
+	h, _, _ := setupTestHandler()
+
+	body := []byte(`{"model":"gpt-4o","messages":[]}`)
+	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", bytes.NewReader(body))
+	rec := httptest.NewRecorder()
+
+	h.HandleChatCompletions(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400 Bad Request, got %d", rec.Code)
+	}
+}
+
+
 

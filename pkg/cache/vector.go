@@ -68,6 +68,9 @@ func HasConflictingIntent(textA, textB string) bool {
 		{"kill", "start"},
 		{"stop", "start"},
 		{"disable", "enable"},
+		{"encrypt", "decrypt"},
+		{"lock", "unlock"},
+		{"encode", "decode"},
 	}
 
 	for _, pair := range criticalOpposites {
