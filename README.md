@@ -1,6 +1,6 @@
 <div align="center">
 
-# Sukami
+# ⚡ Sukami
 
 **High-Performance AI Gateway & Token Optimization Proxy in Pure Go**
 
@@ -21,19 +21,19 @@ It is a single static binary. Zero runtime dependencies. No YAML configuration r
 
 ## Quickstart
 
-**Go**
-
 ```bash
+# 1. Clone the repository
+git clone https://github.com/alexpatil/sukami.git
+cd sukami
+
+# 2. Run natively with Go
 go run ./cmd/sukami
-```
 
-**Docker**
-
-```bash
+# Or run with Docker
 docker compose up -d
 ```
 
-The gateway starts on `http://localhost:8080`. No further configuration is required.
+The gateway and embedded developer dashboard start at `http://localhost:8080`. No further configuration is required.
 
 ---
 
@@ -70,6 +70,20 @@ curl http://localhost:8080/v1/chat/completions \
 ```
 
 The response is a standard OpenAI JSON object. No schema changes, no wrapper fields.
+
+---
+
+## Supported Providers
+
+Sukami automatically routes requests based on the requested model name:
+
+| Provider | Models Routed Automatically |
+|---|---|
+| **OpenAI** | `gpt-4o`, `gpt-4o-mini`, `o1`, `gpt-4-turbo` |
+| **Groq Cloud** | `llama-3.3-70b-versatile`, `mixtral-8x7b` |
+| **DeepSeek** | `deepseek-chat` (V3), `deepseek-reasoner` (R1) |
+| **OpenRouter** | `claude-3.5-sonnet`, `gemini-2.0`, and 300+ models |
+| **Ollama / Local** | Local models via `http://localhost:11434/v1` |
 
 ---
 
@@ -161,6 +175,21 @@ Client Request (OpenAI-compatible)
 
 ---
 
+## Testing & Verification
+
+```bash
+# Run unit tests across all packages
+go test -v ./pkg/...
+
+# Run Go static type analysis and vet checks
+go vet ./...
+
+# Build standalone production binary
+go build -o bin/sukami ./cmd/sukami
+```
+
+---
+
 ## Roadmap
 
 Sukami is production-ready for single-node deployments. Planned capabilities:
@@ -170,13 +199,12 @@ Sukami is production-ready for single-node deployments. Planned capabilities:
 - [ ] **PII & Data Redaction** — Automated sensitive data masking for HIPAA / SOC2 compliance.
 - [ ] **Managed Cloud Gateway** — Dedicated zero-maintenance hosted offering.
 
-Discuss features and share use cases in [GitHub Discussions](https://github.com/alexpatil/sukami/discussions).  
-Direct inquiries: [codingpenin@gmail.com](mailto:codingpenin@gmail.com)
-
 ---
 
-## License
+## Community & License
 
-MIT © [Ganesh Shinde](mailto:codingpenin@gmail.com)
+- **Discussions**: [GitHub Discussions](https://github.com/alexpatil/sukami/discussions)
+- **Bug Reports**: [GitHub Issues](https://github.com/alexpatil/sukami/issues)
+- **Maintainer**: Ganesh Shinde ([codingpenin@gmail.com](mailto:codingpenin@gmail.com))
+- **License**: MIT License © Ganesh Shinde. See [LICENSE](LICENSE) for full terms.
 
-See [LICENSE](LICENSE) for full terms.
