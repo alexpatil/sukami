@@ -1,6 +1,6 @@
 <div align="center">
 
-# ⚡ Sukami
+# ⚡Sukami
 
 **High-Performance AI Gateway & Token Optimization Proxy in Pure Go**
 
@@ -13,7 +13,7 @@
 
 ---
 
-Sukami is a drop-in OpenAI-compatible gateway that transparently reduces token consumption by 20–35% and serves semantically equivalent requests from a sub-10ms in-memory vector cache—without modifying a single line of application code.
+Sukami is a drop-in OpenAI-compatible gateway that transparently reduces token consumption by 20–35% and serves semantically equivalent requests from a sub-10ms in-memory vector cache without modifying a single line of application code.
 
 It is a single static binary. Zero runtime dependencies. No YAML configuration required.
 
