@@ -9,6 +9,9 @@ import (
 	"time"
 )
 
+// DefaultUpstreamURL is the standard fallback completions base endpoint when no upstream flag or custom routing is specified.
+const DefaultUpstreamURL = "https://api.openai.com/v1"
+
 // ProviderConfig defines standard upstream provider endpoints.
 type ProviderConfig struct {
 	ID      string `json:"id"`
