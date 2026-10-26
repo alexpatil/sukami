@@ -1,40 +1,57 @@
-# Sukami Architecture Specification
+﻿# Sukami Architecture Specification
 
-Sukami is an ultra-fast, zero-dependency AI Token Optimization Gateway and Reverse Proxy written in idiomatic Go 1.22+.
+Sukami is a high-performance, zero-dependency AI Token Optimization Gateway and Reverse Proxy written in pure, idiomatic Go standard library.
 
 ---
 
 ## 1. Request Lifecycle Flowchart
 
 ```text
-[ Client (cURL / Python / Node) ]
-               │
-               ▼
-   [ CORS & Middleware Guard ]
-               │
-               ▼
-    [ Auth & Free Quota Guard ] ────(Exhausted)───► [ HTTP 402 Payment Required ]
-               │
-               ▼
-     [ Prompt Pruning Engine ]  ───► Eliminates redundant conversational filler
-               │
-               ▼
-    [ Semantic Vector Cache ]   ───(Hit > 0.85)───► [ HTTP 200 Instant (10ms) ]
-               │ (Miss)
-               ▼
-  [ Output Density Injection ]  ───► Injects anti-fluff directive into system prompt
-               │
-               ▼
- [ Upstream LLM (Groq / OpenAI) ]
-               │
-               ▼
-    [ Output Fluff Stripper ]   ───► Cleans residual conversational boilerplate
-               │
-               ▼
-    [ Metrics & Quota Update ]  ───► Atomically tracks token savings & usage
-               │
-               ▼
-[ Response Streamed to Client ]
+[ Client (cURL / Python / Node / OpenAI SDK) ]
+                      │
+                      ▼
+         [ CORS & Middleware Guard ]
+                      │
+                      ▼
+          [ Sukami API Key Auth ] ─────────(Invalid Key)────────► [ HTTP 401 Unauthorized ]
+                      │ (Valid or Public)
+                      ▼
+        [ Token-Bucket Rate Limiter ] ────(Limit Exceeded)──────► [ HTTP 429 Too Many Requests ]
+                      │
+                      ▼
+      [ Smart Prompt Complexity Router ]
+         Evaluates prompt in <10µs.
+         If low-complexity & opted-in:
+         Routes gpt-4o -> gpt-4o-mini (~94% cost savings)
+                      │
+                      ▼
+          [ Prompt Pruner Engine ]
+         Strips filler, collapses whitespace.
+         Unconditionally preserves code blocks & markdown.
+                      │
+                      ▼
+       [ Semantic Vector Cache Check ] ───(Hit > 0.85 Sim)─────► [ HTTP 200 Instant (<10ms) ]
+                      │ (Miss)
+                      ▼
+        [ Output Density Injection ]
+         If X-Sukami-Density: true,
+         injects anti-fluff directive into system prompt.
+                      │
+                      ▼
+        [ Multi-Provider Dynamic Router ]
+         Auto-routes by model/provider to:
+         OpenAI · Groq · DeepSeek · OpenRouter · Ollama
+                      │
+                      ▼
+     [ Upstream HTTP Forward / SSE Stream ]
+                      │
+                      ▼
+      [ Metrics & Prometheus Exposition ]
+         Records ground-truth tokens, latency,
+         and live dynamic USD cost savings.
+                      │
+                      ▼
+        [ Response Returned to Client ]
 ```
 
 ---
@@ -43,26 +60,29 @@ Sukami is an ultra-fast, zero-dependency AI Token Optimization Gateway and Rever
 
 | Package | Responsibility | Concurrency & Storage Model |
 | :--- | :--- | :--- |
-| `pkg/auth` | API Key validation, Free trial 100k quota enforcement, Token-bucket rate limiting | In-Memory thread-safe `sync.RWMutex` map |
-| `pkg/cache` | Multi-tier response caching: Exact hash + Vector Cosine similarity | LRU In-memory with TTL eviction and normalized term vectors |
-| `pkg/optimizer` | Input prompt pruning (preserving code blocks) + Output density directives & fluff stripper | Zero-allocation string scanners and regex filters |
-| `pkg/metrics` | Real-time observability, In/Out token savings breakdown, USD cost tracking | Ring-buffer sliding window (default 50 recent requests) |
-| `pkg/proxy` | OpenAI-compatible `/v1/chat/completions` and `/v1/models` HTTP handlers | Go 1.22+ `http.ServeMux` with streaming SSE support |
-| `web` | Single-Page Application (SPA) dashboard | React 19 + TypeScript + Vite, served directly from Go binary |
+| `pkg/auth` | Multi-tenant API Key validation, token-bucket rate limiting, usage tracking | In-memory thread-safe `sync.RWMutex` store with per-minute rate limiter |
+| `pkg/cache` | Multi-tier response caching: SHA-256 hash + Vector Cosine similarity with collision guards | In-memory bounded cache (10,000 max entries) with TTL & capacity eviction |
+| `pkg/config` | Standard library environment loader (`.env`) | Pure Go key-value parser with comment and quote handling |
+| `pkg/metrics` | Real-time Prometheus metrics exporter (`/metrics`), live dynamic pricing sync, request recorder | Lock-free / mutex-protected ring buffer (sliding window of recent requests) |
+| `pkg/models` | OpenAI-compatible request, response, and SSE stream data types | Standard Go structs with JSON tags |
+| `pkg/optimizer` | Input prompt pruning, output density directives, sub-10µs prompt complexity classifier, token estimation | Pure Go string scanners, compiled regexes, zero-allocation lexing |
+| `pkg/proxy` | OpenAI-compatible reverse proxy endpoints (`/v1/chat/completions`, `/v1/models`, `/metrics`, `/health`, Playground) | Modern Go `http.ServeMux` with SSE streaming and upstream connection pooling |
+| `web` | Single-page developer status dashboard & playground | Native HTML5, modern CSS3, and Vanilla JavaScript (zero node/npm dependencies) |
 
 ---
 
-## 3. Design Principles (SOLID, KISS, DRY)
+## 3. Core Architectural Principles
 
-1. **Strict File Limits**: Every Go source file is kept under 250 lines for maximum maintainability.
-2. **Interface Segregation**: Handlers interact with abstract `Cache`, `KeyStore`, and `RequestTracker` interfaces, decoupling storage implementations.
-3. **Sub-10ms Overhead**: Zero heavy frameworks; stdlib `net/http` first.
+1. **Zero External Dependencies**: `go.mod` contains 0 third-party packages. Everything is built with the Go standard library (`net/http`, `sync`, `regexp`, `crypto/rand`).
+2. **Strict File Length Limits**: Every Go source file is kept strictly under 250 lines (`AGENTS.md` Rule 8) for readability and maintainability.
+3. **Interface Segregation (SOLID)**: Handlers interact exclusively through interfaces (`Cache`, `KeyStore`, `RequestTracker`), making subsystems independently testable and swappable.
+4. **Sub-10ms Overhead**: Heuristic lexical analysis runs in under 10 microseconds, prompt pruning executes in under 50 microseconds, and cache hits respond in sub-10ms.
 
 ---
 
 ## 4. Smart Model Routing & Complexity Classifier
 
-Sukami features an in-process, zero-overhead lexical and syntactic prompt complexity classifier (`pkg/optimizer/classifier.go`). It evaluates every incoming prompt in `<10µs` without calling any external LLM.
+Sukami features an in-process, zero-overhead lexical and syntactic prompt complexity classifier (`pkg/optimizer/classifier.go`). It evaluates incoming prompts in `<10µs` without calling any external model.
 
 ### Complexity Signals
 
@@ -95,4 +115,3 @@ X-Sukami-Routed-Model: gpt-4o-mini
 X-Sukami-Route-Tier: economy
 X-Sukami-Route-Reason: low-complexity prompt routed to gpt-4o-mini (~94% cost savings)
 ```
-
