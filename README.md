@@ -85,8 +85,8 @@ Incoming prompts are embedded and matched against cached results using cosine si
 - **Entity Collision Guard** — prevents false positives between distinct technical subjects (e.g., Docker vs. Kubernetes).
 - **Opposites Conflict Guard** — prevents cache hits across antonymic intent (e.g., `delete` vs. `backup`, `encrypt` vs. `decrypt`).
 
-**3. Smart Multi-Provider Routing**
-Routes automatically to OpenAI, Groq Cloud, DeepSeek, OpenRouter, or a local Ollama instance based on the requested model name. No routing rules to define.
+**3. Smart Multi-Provider & Model Routing**
+Routes automatically across OpenAI, Groq Cloud, DeepSeek, OpenRouter, and Ollama. When enabled (`X-Sukami-Smart-Route: true`), evaluates prompt complexity in <10µs to route low-complexity queries from expensive flagship models (`gpt-4o`, `claude-3.5-sonnet`) to high-speed economy equivalents (`gpt-4o-mini`, `claude-3.5-haiku`), cutting token costs by 80–95% while preserving flagship models for complex code and multi-step reasoning.
 
 **4. Native Prometheus Observability**
 A built-in Prometheus 0.0.4-compatible exporter is available at `GET /metrics`. Tracks request volume, cache hit ratio, token savings, and real-time dollar savings computed from live model pricing.

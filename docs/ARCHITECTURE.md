@@ -57,3 +57,42 @@ Sukami is an ultra-fast, zero-dependency AI Token Optimization Gateway and Rever
 1. **Strict File Limits**: Every Go source file is kept under 250 lines for maximum maintainability.
 2. **Interface Segregation**: Handlers interact with abstract `Cache`, `KeyStore`, and `RequestTracker` interfaces, decoupling storage implementations.
 3. **Sub-10ms Overhead**: Zero heavy frameworks; stdlib `net/http` first.
+
+---
+
+## 4. Smart Model Routing & Complexity Classifier
+
+Sukami features an in-process, zero-overhead lexical and syntactic prompt complexity classifier (`pkg/optimizer/classifier.go`). It evaluates every incoming prompt in `<10µs` without calling any external LLM.
+
+### Complexity Signals
+
+| Signal Type | Triggers & Heuristics | Classification |
+| :--- | :--- | :--- |
+| **Code Syntax & Blocks** | Markdown fences (` ``` `), `func `, `struct `, `class `, `SELECT `, `goroutine`, stack traces (`panic:`, `NullPointerException`) | **Flagship Tier** |
+| **Deep Reasoning** | "step by step", "mathematical proof", "architectural tradeoff", "distributed consensus", "memory leak" | **Flagship Tier** |
+| **Long Context** | Prompt length exceeding 2,000 characters (~500+ tokens) | **Flagship Tier** |
+| **Conversational / Factual** | Factual definitions, translation, grammar corrections, brief conversational questions | **Economy Tier** |
+
+### Dynamic Model Tier Mapping
+
+When Smart Routing is enabled (`X-Sukami-Smart-Route: true` or `ENABLE_SMART_ROUTING=true`), economy-classified prompts requesting expensive models are transparently routed to their lightweight counterparts:
+
+| Original Model | Economy Routed Model | Cost Savings |
+| :--- | :--- | :--- |
+| `gpt-4o` | `gpt-4o-mini` | **~94%** |
+| `gpt-4` / `gpt-4-turbo` | `gpt-4o-mini` | **~98%** |
+| `claude-3-5-sonnet` | `claude-3-5-haiku` | **~80%** |
+| `llama-3.3-70b-versatile` | `llama-3.1-8b-instant` | **~87%** |
+| `deepseek-reasoner` | `deepseek-chat` | **~75%** |
+
+### Transparent Telemetry Headers
+
+Every smart-routed response includes transparent diagnostic headers so client applications retain full auditable visibility into model selection:
+
+```http
+X-Sukami-Original-Model: gpt-4o
+X-Sukami-Routed-Model: gpt-4o-mini
+X-Sukami-Route-Tier: economy
+X-Sukami-Route-Reason: low-complexity prompt routed to gpt-4o-mini (~94% cost savings)
+```
+
