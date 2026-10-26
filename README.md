@@ -73,20 +73,6 @@ The response is a standard OpenAI JSON object. No schema changes, no wrapper fie
 
 ---
 
-## Supported Providers
-
-Sukami automatically routes requests based on the requested model name:
-
-| Provider | Models Routed Automatically |
-|---|---|
-| **OpenAI** | `gpt-4o`, `gpt-4o-mini`, `o1`, `gpt-4-turbo` |
-| **Groq Cloud** | `llama-3.3-70b-versatile`, `mixtral-8x7b` |
-| **DeepSeek** | `deepseek-chat` (V3), `deepseek-reasoner` (R1) |
-| **OpenRouter** | `claude-3.5-sonnet`, `gemini-2.0`, and 300+ models |
-| **Ollama / Local** | Local models via `http://localhost:11434/v1` |
-
----
-
 ## How It Works
 
 Sukami operates as a transparent middleware layer on every request.
