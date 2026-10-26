@@ -1,16 +1,9 @@
-# React + Vite
+# 🌐 Sukami Embedded Web Dashboard
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+This directory contains the self-contained developer status dashboard for the Sukami AI token optimization gateway.
 
-Currently, two official plugins are available:
-
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+## Overview
+- **Zero Build Step**: Built with pure HTML5, CSS3, and Vanilla JavaScript. No Node.js, npm, webpack, or external bundlers required.
+- **Embedded Static Asset**: Directly embedded into the Go binary at build time via Go standard library's `embed.FS` (`//go:embed web/*`).
+- **Real-Time Telemetry**: Visualizes total requests, semantic cache hits, prompt token savings, and estimated USD cost reductions.
+- **Interactive Sandbox**: Test transparent prompt pruning, live model routing, and token analytics directly from the browser at `http://localhost:8080`.
