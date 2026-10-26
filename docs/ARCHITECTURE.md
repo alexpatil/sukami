@@ -1,4 +1,4 @@
-﻿# Sukami Architecture Specification
+# Sukami Architecture Specification
 
 Sukami is a high-performance, zero-dependency AI Token Optimization Gateway and Reverse Proxy written in pure, idiomatic Go standard library.
 
@@ -13,10 +13,9 @@ Sukami is a high-performance, zero-dependency AI Token Optimization Gateway and 
          [ CORS & Middleware Guard ]
                       │
                       ▼
-          [ Sukami API Key Auth ] ─────────(Invalid Key)────────► [ HTTP 401 Unauthorized ]
-                      │ (Valid or Public)
-                      ▼
-        [ Token-Bucket Rate Limiter ] ────(Limit Exceeded)──────► [ HTTP 429 Too Many Requests ]
+   [ Optional Multi-Tenant Tenant Guard ] ───(Invalid Tenant Key)──► [ HTTP 401 Unauthorized ]
+   (Active ONLY if X-Sukami-Key is provided;
+    enforces per-tenant rate limits & isolation)
                       │
                       ▼
       [ Smart Prompt Complexity Router ]
@@ -38,6 +37,12 @@ Sukami is a high-performance, zero-dependency AI Token Optimization Gateway and 
          injects anti-fluff directive into system prompt.
                       │
                       ▼
+     [ Upstream Provider Key Resolution ] ────(No Key Found)───► [ HTTP 401 Missing API Key ]
+      Checks: 1. Authorization: Bearer <provider_key>
+              2. X-Upstream-Key
+              3. Server Env (OPENAI_API_KEY, GROQ_API_KEY, etc.)
+                      │ (Key Present)
+                      ▼
         [ Multi-Provider Dynamic Router ]
          Auto-routes by model/provider to:
          OpenAI · Groq · DeepSeek · OpenRouter · Ollama
@@ -54,13 +59,15 @@ Sukami is a high-performance, zero-dependency AI Token Optimization Gateway and 
         [ Response Returned to Client ]
 ```
 
+> **Zero Authentication Friction:** Sukami acts as a transparent reverse proxy. Developers do not need to generate a proprietary Sukami API key to use the gateway. Clients connect with their standard upstream provider credentials (`Authorization: Bearer $OPENAI_API_KEY` or server-level `OPENAI_API_KEY` environment variables). Multi-tenant tenant keys (`X-Sukami-Key`) are purely optional for enterprise teams requiring segregated metrics and rate limits.
+
 ---
 
 ## 2. Package Architecture
 
 | Package | Responsibility | Concurrency & Storage Model |
 | :--- | :--- | :--- |
-| `pkg/auth` | Multi-tenant API Key validation, token-bucket rate limiting, usage tracking | In-memory thread-safe `sync.RWMutex` store with per-minute rate limiter |
+| `pkg/auth` | Optional multi-tenant tenant management (`X-Sukami-Key`), rate limiting, and usage tracking | In-memory thread-safe `sync.RWMutex` store with per-minute rate limiter |
 | `pkg/cache` | Multi-tier response caching: SHA-256 hash + Vector Cosine similarity with collision guards | In-memory bounded cache (10,000 max entries) with TTL & capacity eviction |
 | `pkg/config` | Standard library environment loader (`.env`) | Pure Go key-value parser with comment and quote handling |
 | `pkg/metrics` | Real-time Prometheus metrics exporter (`/metrics`), live dynamic pricing sync, request recorder | Lock-free / mutex-protected ring buffer (sliding window of recent requests) |
