@@ -172,6 +172,20 @@ go build -o bin/sukami ./cmd/sukami
 
 ---
 
+## 🗺️ Roadmap & Future Scale
+
+Sukami is **100% open-source under the MIT license**. The following capabilities are planned for future enterprise scale:
+
+- [ ] **Distributed Cache Sync**: Multi-instance clustering via Redis / Valkey.
+- [ ] **Team Budgets & Quotas**: Organization-wide hard caps and departmental alerts.
+- [ ] **PII & Compliance Redaction**: Automated data masking for HIPAA / SOC2 pipelines.
+- [ ] **Managed Cloud Hosting**: Dedicated zero-maintenance deployment.
+
+> Want to shape these features, request capabilities, or explore enterprise deployment?  
+> Join the conversation in [Discussions](https://github.com/alexpatil/sukami/discussions) or reach out to Ganesh Shinde ([codingpenin@gmail.com](mailto:codingpenin@gmail.com)).
+
+---
+
 ## 💬 Community & Contact
 
 Have questions, feedback, or ideas? Reach out:
