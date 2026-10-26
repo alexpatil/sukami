@@ -130,7 +130,28 @@ Real-world evaluation comparing direct upstream LLM calls against Sukami on an e
 | **Semantic Cache Hit** | 7.33s | **< 10ms** | **99.8% latency reduction** |
 | **Cost Efficiency** | Standard vendor bill | **35.6% – 100% saved** | **~$750+ saved per 100k requests** |
 
-> **Reproduce Locally**: Run the automated benchmark CLI anytime with `go run ./cmd/sukami-bench`.
+---
+
+## 📈 Observability & Prometheus Metrics
+
+Sukami natively exposes standard Prometheus exposition format (v0.0.4) metrics with **zero external dependencies**:
+
+```bash
+# Scrape live metrics with Prometheus, Datadog, or cURL
+curl http://localhost:8080/metrics
+```
+
+| Metric | Type | Description |
+| :--- | :--- | :--- |
+| `sukami_requests_total` | Counter | Total incoming HTTP requests processed |
+| `sukami_cache_hits_total` | Counter | Requests served directly from semantic cache |
+| `sukami_cache_misses_total` | Counter | Requests forwarded to upstream model providers |
+| `sukami_cache_hit_ratio` | Gauge | Cache hit ratio (`0.0` to `1.0`) |
+| `sukami_tokens_original_total` | Counter | Total unoptimized prompt tokens received |
+| `sukami_tokens_saved_total` | Counter | Total tokens saved via pruning and semantic cache |
+| `sukami_tokens_billed_total` | Counter | Total tokens billed by upstream providers |
+| `sukami_token_savings_ratio` | Gauge | Saved tokens ratio (`0.0` to `1.0`) |
+| `sukami_cost_saved_usd_total` | Counter | Dynamic cost saved in USD based on live pricing |
 
 ---
 

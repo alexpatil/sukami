@@ -102,6 +102,7 @@ func main() {
 	mux.HandleFunc("POST /api/models/fetch", proxyHandler.HandleFetchProviderModels)
 
 	// SaaS Operations & Playground API
+	mux.HandleFunc("GET /metrics", proxyHandler.HandlePrometheusMetrics)
 	mux.HandleFunc("GET /api/metrics", proxyHandler.HandleMetrics)
 	mux.HandleFunc("POST /api/playground", proxyHandler.HandlePlayground)
 	mux.HandleFunc("GET /api/keys", proxyHandler.HandleListKeys)

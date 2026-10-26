@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sukami/pkg/auth"
 	"sukami/pkg/cache"
 	"sukami/pkg/metrics"
@@ -179,6 +180,32 @@ func TestResolveUpstreamTarget(t *testing.T) {
 	req4 := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
 	if target := h.resolveUpstreamTarget(req4, "gpt-4o"); target != "https://api.groq.com/openai/v1/chat/completions" {
 		t.Errorf("expected default Groq target, got %s", target)
+	}
+}
+
+func TestHandlePrometheusMetrics(t *testing.T) {
+	h, _, _ := setupTestHandler()
+
+	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+	rec := httptest.NewRecorder()
+
+	h.HandlePrometheusMetrics(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200 OK, got %d", rec.Code)
+	}
+
+	contentType := rec.Header().Get("Content-Type")
+	if !strings.HasPrefix(contentType, "text/plain") {
+		t.Errorf("expected text/plain Content-Type, got %s", contentType)
+	}
+
+	body := rec.Body.String()
+	if !strings.Contains(body, "sukami_requests_total") {
+		t.Errorf("expected body to contain 'sukami_requests_total', got:\n%s", body)
+	}
+	if !strings.Contains(body, "sukami_cost_saved_usd_total") {
+		t.Errorf("expected body to contain 'sukami_cost_saved_usd_total', got:\n%s", body)
 	}
 }
 

@@ -27,6 +27,7 @@ type Cache interface {
 type RequestTracker interface {
 	RecordRequest(record metrics.RequestRecord)
 	GetSummary() metrics.Summary
+	FormatPrometheus() string
 }
 
 // Handler manages proxy routing and token optimization.
