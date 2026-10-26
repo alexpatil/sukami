@@ -13,6 +13,9 @@
 
 ---
 
+> [!NOTE]
+> ⚡ Sukami is under active early-stage development. We welcome bug reports, edge cases, and feature requests via [GitHub Issues](https://github.com/alexpatil/sukami/issues)!
+
 Sukami is a drop-in OpenAI-compatible gateway that transparently reduces token consumption by 20–35% and serves semantically equivalent requests from a sub-10ms in-memory vector cache without modifying a single line of application code.
 
 It is a single static binary. Zero runtime dependencies. No YAML configuration required.
