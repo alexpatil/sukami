@@ -26,13 +26,39 @@ func TestSemanticCosine_DifferentWordsSameMeaning(t *testing.T) {
 	}
 }
 
-// TestSemanticCosine_OppositeActionsPreventFalsePositives ensures backup vs delete are NEVER matched.
+// TestSemanticCosine_OppositeActionsPreventFalsePositives ensures opposite actions are NEVER matched.
 func TestSemanticCosine_OppositeActionsPreventFalsePositives(t *testing.T) {
-	promptBackup := "How to backup PostgreSQL database safely?"
-	promptDelete := "How to delete PostgreSQL database safely?"
+	testCases := []struct {
+		name    string
+		promptA string
+		promptB string
+	}{
+		{"Backup vs Delete", "How to backup PostgreSQL database safely?", "How to delete PostgreSQL database safely?"},
+		{"Kill vs Start", "How do I kill the background process?", "How do I start the background process?"},
+		{"Disable vs Enable", "Disable auth in local configuration", "Enable auth in local configuration"},
+		{"Encrypt vs Decrypt", "How to encrypt file using AES-256", "How to decrypt file using AES-256"},
+	}
 
-	if !HasConflictingIntent(promptBackup, promptDelete) {
-		t.Fatalf("Safety guard failed! 'backup' vs 'delete' must trigger conflict detection.")
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			if !HasConflictingIntent(tc.promptA, tc.promptB) {
+				t.Errorf("Safety guard failed! %q vs %q must trigger conflict detection.", tc.promptA, tc.promptB)
+			}
+		})
+	}
+}
+
+// TestSemanticCosine_EmptyAndWhitespace verifies that empty inputs yield 0 similarity without panic.
+func TestSemanticCosine_EmptyAndWhitespace(t *testing.T) {
+	vecEmpty := BuildSemanticVector("")
+	vecSpace := BuildSemanticVector("   \n\t  ")
+	vecReal := BuildSemanticVector("Explain Go channels")
+
+	if sim := CosineSimilarity(vecEmpty, vecReal); sim != 0.0 {
+		t.Errorf("Expected 0 similarity for empty vector, got %f", sim)
+	}
+	if sim := CosineSimilarity(vecSpace, vecReal); sim != 0.0 {
+		t.Errorf("Expected 0 similarity for whitespace vector, got %f", sim)
 	}
 }
 

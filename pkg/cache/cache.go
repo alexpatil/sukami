@@ -22,18 +22,28 @@ type CacheEntry struct {
 
 // MemoryCache is a high-performance in-memory cache supporting semantic similarity.
 type MemoryCache struct {
-	mu      sync.RWMutex
-	entries map[string]*CacheEntry
-	ttl     time.Duration
-	hits    uint64
-	misses  uint64
+	mu         sync.RWMutex
+	entries    map[string]*CacheEntry
+	ttl        time.Duration
+	maxEntries int
+	hits       uint64
+	misses     uint64
 }
 
-// NewMemoryCache initializes an in-memory cache with standard TTL.
+// NewMemoryCache initializes an in-memory cache with standard TTL and default 10,000 capacity.
 func NewMemoryCache(defaultTTL time.Duration) *MemoryCache {
+	return NewMemoryCacheWithCapacity(defaultTTL, 10000)
+}
+
+// NewMemoryCacheWithCapacity initializes an in-memory cache with explicit capacity limit.
+func NewMemoryCacheWithCapacity(defaultTTL time.Duration, maxEntries int) *MemoryCache {
+	if maxEntries <= 0 {
+		maxEntries = 10000
+	}
 	c := &MemoryCache{
-		entries: make(map[string]*CacheEntry),
-		ttl:     defaultTTL,
+		entries:    make(map[string]*CacheEntry),
+		ttl:        defaultTTL,
+		maxEntries: maxEntries,
 	}
 	go c.evictionWorker()
 	return c
@@ -77,6 +87,11 @@ func (c *MemoryCache) GetSemantic(model, prompt string, threshold float64) ([]by
 	exactKey := ComputeHash(model, prompt)
 	if data, ok := c.Get(exactKey); ok {
 		return data, true, 1.0
+	}
+
+	// Fast exit if prompt is empty (no semantic vector lookup needed)
+	if len(strings.TrimSpace(prompt)) == 0 {
+		return nil, false, 0.0
 	}
 
 	c.mu.RLock()
@@ -133,6 +148,29 @@ func (c *MemoryCache) Set(key string, response []byte, model string) {
 func (c *MemoryCache) SetSemantic(key, prompt string, response []byte, model string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+
+	// Capacity bound: if at capacity, evict expired entry or oldest entry
+	if len(c.entries) >= c.maxEntries {
+		now := time.Now()
+		var oldestKey string
+		var oldestTime time.Time
+		evicted := false
+
+		for k, entry := range c.entries {
+			if now.After(entry.ExpiresAt) {
+				delete(c.entries, k)
+				evicted = true
+				break
+			}
+			if oldestKey == "" || entry.CachedAt.Before(oldestTime) {
+				oldestKey = k
+				oldestTime = entry.CachedAt
+			}
+		}
+		if !evicted && oldestKey != "" {
+			delete(c.entries, oldestKey)
+		}
+	}
 
 	c.entries[key] = &CacheEntry{
 		ResponseJSON: response,

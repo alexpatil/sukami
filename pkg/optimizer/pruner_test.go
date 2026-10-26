@@ -36,6 +36,40 @@ func TestPruneText_WhitespaceCollapsing(t *testing.T) {
 	}
 }
 
+// TestPruneText_EdgeCases tests adversarial and malformed prompt edge cases.
+func TestPruneText_EdgeCases(t *testing.T) {
+	testCases := []struct {
+		name        string
+		input       string
+		mustContain string
+	}{
+		{
+			name:        "Adversarial Placeholder In Prompt",
+			input:       "Explain the meaning of __CODE_BLOCK_0__ in compilers:\n```go\nfunc run() { println(\"ok\") }\n```",
+			mustContain: "Explain the meaning of __CODE_BLOCK_0__",
+		},
+		{
+			name:        "Unclosed Code Block",
+			input:       "Review this snippet:\n```python\nplease def test():\n    return True",
+			mustContain: "please def test():",
+		},
+		{
+			name:        "Whitespace Only Input",
+			input:       "   \n\t  \n  ",
+			mustContain: "",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			pruned := PruneText(tc.input)
+			if tc.mustContain != "" && !strings.Contains(pruned, tc.mustContain) {
+				t.Errorf("FAIL: Expected output to contain %q, but got:\n%s", tc.mustContain, pruned)
+			}
+		})
+	}
+}
+
 // TestOptimizeMessages_RealWorldDataset tests realistic developer and business prompts.
 func TestOptimizeMessages_RealWorldDataset(t *testing.T) {
 	testCases := []struct {

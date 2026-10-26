@@ -44,8 +44,11 @@ func (rl *RateLimiter) Allow(key string, limitPerMin int) bool {
 		return true
 	}
 
-	// Refill tokens based on elapsed duration
+	// Refill tokens based on elapsed duration (guard against negative elapsed time from NTP clock drift)
 	elapsed := now.Sub(b.lastRefill).Seconds()
+	if elapsed < 0 {
+		elapsed = 0
+	}
 	fillRate := float64(limitPerMin) / 60.0 // tokens per second
 	b.tokens += elapsed * fillRate
 	if b.tokens > float64(limitPerMin) {

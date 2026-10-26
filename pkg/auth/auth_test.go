@@ -3,6 +3,7 @@ package auth
 import (
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestKeyStore_CreateAndValidate(t *testing.T) {
@@ -71,3 +72,22 @@ func TestRateLimiter_TokenBucket(t *testing.T) {
 		t.Errorf("Request 4 should be throttled by rate limit")
 	}
 }
+
+func TestRateLimiter_ClockSkew(t *testing.T) {
+	limiter := NewRateLimiter()
+	key := "skew-key"
+
+	if !limiter.Allow(key, 10) {
+		t.Fatalf("First request should succeed")
+	}
+
+	// Artificially step clock backward (lastRefill set in future)
+	limiter.mu.Lock()
+	limiter.buckets[key].lastRefill = time.Now().Add(1 * time.Hour)
+	limiter.mu.Unlock()
+
+	if !limiter.Allow(key, 10) {
+		t.Errorf("Subsequent request should still have tokens despite clock skew")
+	}
+}
+

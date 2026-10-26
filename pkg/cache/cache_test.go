@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"fmt"
 	"testing"
 	"time"
 )
@@ -74,3 +75,19 @@ func TestMemoryCache_Expiration(t *testing.T) {
 		t.Errorf("Item should have expired, but got cache HIT")
 	}
 }
+
+// TestMemoryCache_CapacityBound verifies that cache does not grow beyond maxEntries.
+func TestMemoryCache_CapacityBound(t *testing.T) {
+	c := NewMemoryCacheWithCapacity(10*time.Minute, 5)
+
+	for i := 0; i < 10; i++ {
+		key := fmt.Sprintf("key_%d", i)
+		c.Set(key, []byte(fmt.Sprintf("val_%d", i)), "gpt-4o")
+	}
+
+	_, _, total := c.Stats()
+	if total > 5 {
+		t.Errorf("Cache exceeded max capacity bound! Expected <= 5, got %d", total)
+	}
+}
+
