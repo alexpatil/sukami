@@ -69,6 +69,13 @@ func (h *Handler) HandleMetrics(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, summary)
 }
 
+// HandlePrometheusMetrics returns standard Prometheus exposition format text for scraper integration.
+func (h *Handler) HandlePrometheusMetrics(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte(h.tracker.FormatPrometheus()))
+}
+
 // HandleListKeys returns all registered tenant API keys.
 func (h *Handler) HandleListKeys(w http.ResponseWriter, r *http.Request) {
 	keys := h.authStore.ListKeys()
