@@ -4,6 +4,7 @@
 
 **High-Performance AI Gateway & Token Optimization Proxy in Pure Go**
 
+[![CI](https://img.shields.io/github/actions/workflow/status/alexpatil/sukami/ci.yml?branch=main&style=flat-square&logo=githubactions&logoColor=white&label=CI)](https://github.com/alexpatil/sukami/actions/workflows/ci.yml)
 [![Go Version](https://img.shields.io/badge/Go-1.27+-00ADD8?style=flat-square&logo=go&logoColor=white)](https://go.dev)
 [![License: MIT](https://img.shields.io/badge/License-MIT-6B7280?style=flat-square)](LICENSE)
 [![Pure Go](https://img.shields.io/badge/dependencies-zero-4ADE80?style=flat-square)](go.mod)
