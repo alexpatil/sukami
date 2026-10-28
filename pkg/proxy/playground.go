@@ -9,6 +9,7 @@ import (
 // PlaygroundRequest represents request payload for interactive testing.
 type PlaygroundRequest struct {
 	Prompt string `json:"prompt"`
+	Model  string `json:"model"`
 }
 
 // HandlePlayground allows real-time interactive testing of token optimization.
@@ -17,6 +18,11 @@ func (h *Handler) HandlePlayground(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "Invalid request payload")
 		return
+	}
+
+	model := req.Model
+	if model == "" {
+		model = "gpt-4o"
 	}
 
 	origTokens := optimizer.EstimateTokens(req.Prompt)
@@ -33,8 +39,11 @@ func (h *Handler) HandlePlayground(w http.ResponseWriter, r *http.Request) {
 		pct = (float64(saved) / float64(origTokens)) * 100.0
 	}
 
-	origIDs := optimizer.EncodeToTokenIDs("gpt-4o", req.Prompt)
-	optIDs := optimizer.EncodeToTokenIDs("gpt-4o", pruned)
+	origIDs := optimizer.EncodeToTokenIDs(model, req.Prompt)
+	optIDs := optimizer.EncodeToTokenIDs(model, pruned)
+
+	classResult := optimizer.ClassifyPromptComplexity(req.Prompt)
+	routedModel, changed, routeReason := optimizer.ResolveSmartModel(model, classResult.Tier)
 
 	writeJSON(w, http.StatusOK, map[string]any{
 		"tokenizer":           "Pure Go Stdlib Engine (Zero Third-Party)",
@@ -46,6 +55,13 @@ func (h *Handler) HandlePlayground(w http.ResponseWriter, r *http.Request) {
 		"savings_percent":     pct,
 		"original_token_ids":  origIDs,
 		"optimized_token_ids": optIDs,
+		"smart_routing": map[string]any{
+			"original_model": model,
+			"routed_model":   routedModel,
+			"tier":           string(classResult.Tier),
+			"reason":         routeReason,
+			"is_downgraded":  changed,
+		},
 	})
 }
 
