@@ -1,0 +1,35 @@
+# Binaries and build artifacts
+/bin/
+/dist/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+sukami
+sukami-*
+
+# Test and coverage artifacts
+*.test
+*.out
+coverage.txt
+coverage.html
+
+# Environment variables and credentials (Strict security)
+.env
+.env.*
+!.env.example
+
+# IDE and Editor configuration
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Operating System files
+.DS_Store
+Thumbs.db
+
+# Local engineering notebook
+PROJECT_NOTEBOOK.md
