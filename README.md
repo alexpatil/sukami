@@ -5,6 +5,7 @@
 **High-Performance AI Gateway & Token Optimization Proxy in Pure Go**
 
 [![CI](https://img.shields.io/github/actions/workflow/status/alexpatil/sukami/ci.yml?branch=main&style=flat-square&logo=githubactions&logoColor=white&label=CI)](https://github.com/alexpatil/sukami/actions/workflows/ci.yml)
+[![Latest Release](https://img.shields.io/github/v/release/alexpatil/sukami?style=flat-square&logo=github&color=blue)](https://github.com/alexpatil/sukami/releases)
 [![Go Version](https://img.shields.io/badge/Go-1.22+-00ADD8?style=flat-square&logo=go&logoColor=white)](https://go.dev)
 [![License: MIT](https://img.shields.io/badge/License-MIT-6B7280?style=flat-square)](LICENSE)
 [![Pure Go](https://img.shields.io/badge/dependencies-zero-4ADE80?style=flat-square)](go.mod)
@@ -25,15 +26,20 @@ It is a single static binary. Zero runtime dependencies. No YAML configuration r
 
 ## Quickstart
 
+### 1. Download or Run
+
+**Option A: Pre-compiled standalone binary (No Go required)**
+Download the latest static binary for Linux, macOS, or Windows from [GitHub Releases](https://github.com/alexpatil/sukami/releases).
+
+**Option B: Run with Go (1.22+)**
 ```bash
-# 1. Clone the repository
 git clone https://github.com/alexpatil/sukami.git
 cd sukami
-
-# 2. Run natively with Go
 go run ./cmd/sukami
+```
 
-# Or run with Docker
+**Option C: Run with Docker**
+```bash
 docker compose up -d
 ```
 
