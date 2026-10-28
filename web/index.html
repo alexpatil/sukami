@@ -640,9 +640,13 @@
 
       <textarea id="prompt-input" class="sandbox-textarea" placeholder="Type or paste any prompt to analyze token savings...">Could you please kindly help me write a function in Go that connects to PostgreSQL and downloads records concurrently? Please make sure to handle errors properly and include inline comments. Thank you so much!</textarea>
 
-      <div class="sandbox-actions">
+      <div class="sandbox-actions" style="display: flex; align-items: center; flex-wrap: wrap; gap: 12px;">
         <button class="btn-primary" onclick="testOptimize()">⚡ Test BPE Pruning</button>
         <button class="btn-execute" onclick="executeLiveRequest()">🚀 Execute Live Call</button>
+        <label style="display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.82rem; color: #cbd5e1; background: rgba(15, 23, 42, 0.75); padding: 7px 12px; border-radius: 8px; border: 1px solid var(--card-border); user-select: none;">
+          <input type="checkbox" id="toggle-smart-route" checked style="accent-color: var(--primary); width: 15px; height: 15px; cursor: pointer;" />
+          <span>Smart Route (<code style="color: var(--primary); font-family: monospace;">8.8µs Classifier</code>)</span>
+        </label>
         <span id="execution-status" style="font-size: 0.8rem; color: var(--text-muted);">Routes dynamically to selected provider</span>
       </div>
 
@@ -652,6 +656,7 @@
           <span class="stat-pill">Optimized: <strong id="res-opt">-</strong> tokens</span>
           <span class="stat-pill pill-saved" id="res-saved">+0 tokens saved (0.0%)</span>
           <span class="stat-pill" id="res-mode" style="color: var(--primary);">Local BPE Test</span>
+          <span class="stat-pill" id="res-smart-route" style="display: none; background: rgba(56, 189, 248, 0.12); color: var(--primary); border: 1px solid rgba(56, 189, 248, 0.3);"></span>
         </div>
         <div style="font-size: 0.75rem; text-transform: uppercase; font-weight: 600; color: var(--text-muted); margin-bottom: 6px;" id="res-label">Optimized Output:</div>
         <div class="result-text" id="res-text"></div>
@@ -981,10 +986,11 @@ Please make sure to handle errors properly and kindly include inline comments ex
       if (!prompt) return;
 
       try {
+        const model = activeModel || 'gpt-4o';
         const res = await fetch('/api/playground', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt })
+          body: JSON.stringify({ prompt, model })
         });
         const data = await res.json();
 
@@ -994,6 +1000,20 @@ Please make sure to handle errors properly and kindly include inline comments ex
         document.getElementById('res-mode').innerText = 'Local BPE Pruning';
         document.getElementById('res-label').innerText = 'Pruned Prompt:';
         document.getElementById('res-text').innerText = data.optimized_text;
+
+        const routeEl = document.getElementById('res-smart-route');
+        if (data.smart_routing) {
+          if (data.smart_routing.is_downgraded) {
+            routeEl.innerHTML = `⚡ Smart Route: <strong>${escapeHtml(data.smart_routing.original_model)}</strong> → <strong style="color: #34d399;">${escapeHtml(data.smart_routing.routed_model)}</strong> (${escapeHtml(data.smart_routing.tier)}: ${escapeHtml(data.smart_routing.reason)})`;
+            routeEl.style.display = 'inline-block';
+          } else {
+            routeEl.innerHTML = `🛡️ Flagship Preserved: <strong>${escapeHtml(data.smart_routing.original_model)}</strong> (${escapeHtml(data.smart_routing.reason)})`;
+            routeEl.style.display = 'inline-block';
+          }
+        } else {
+          routeEl.style.display = 'none';
+        }
+
         document.getElementById('sandbox-result').classList.add('active');
       } catch (err) {
         alert("Optimization request error: " + err.message);
@@ -1010,11 +1030,15 @@ Please make sure to handle errors properly and kindly include inline comments ex
 
       const key = document.getElementById('provider-key-input').value.trim();
       const customUrl = activeProvider === 'custom' ? document.getElementById('custom-url-input').value.trim() : '';
+      const smartRouteEnabled = document.getElementById('toggle-smart-route')?.checked ?? true;
 
       const headers = {
         'Content-Type': 'application/json',
         'X-Provider': activeProvider
       };
+      if (smartRouteEnabled) {
+        headers['X-Sukami-Smart-Route'] = 'true';
+      }
       if (key) {
         headers['Authorization'] = 'Bearer ' + key;
         headers['X-Upstream-Key'] = key;
@@ -1045,11 +1069,27 @@ Please make sure to handle errors properly and kindly include inline comments ex
         const prunedHeader = res.headers.get('X-Sukami-Pruned-Tokens') || '0';
         const cacheHeader = res.headers.get('X-Cache') || 'MISS';
 
+        const origModel = res.headers.get('X-Sukami-Original-Model');
+        const routedModel = res.headers.get('X-Sukami-Routed-Model');
+        const routeTier = res.headers.get('X-Sukami-Route-Tier') || '';
+        const mappedModel = res.headers.get('X-Sukami-Mapped-Model');
+
+        const routeEl = document.getElementById('res-smart-route');
+        if (routedModel && origModel && routedModel !== origModel) {
+          routeEl.innerHTML = `⚡ Smart Routed: <strong>${escapeHtml(origModel)}</strong> → <strong style="color: #34d399;">${escapeHtml(routedModel)}</strong> (${escapeHtml(routeTier)})`;
+          routeEl.style.display = 'inline-block';
+        } else if (mappedModel) {
+          routeEl.innerHTML = `⚡ Upstream Mapped: <strong>${escapeHtml(activeModel)}</strong> → <strong style="color: #38bdf8;">${escapeHtml(mappedModel)}</strong>`;
+          routeEl.style.display = 'inline-block';
+        } else {
+          routeEl.style.display = 'none';
+        }
+
         document.getElementById('res-orig').innerText = data.usage?.prompt_tokens || '~';
         document.getElementById('res-opt').innerText = (data.usage?.prompt_tokens || 0) - parseInt(prunedHeader);
         document.getElementById('res-saved').innerText = `+${prunedHeader} tokens pruned`;
         document.getElementById('res-mode').innerText = `${activeProvider.toUpperCase()} • ${latency}ms • ${cacheHeader}`;
-        document.getElementById('res-label').innerText = `Model Reply (${activeModel}):`;
+        document.getElementById('res-label').innerText = `Model Reply (${routedModel || activeModel}):`;
         document.getElementById('res-text').innerText = reply;
         document.getElementById('sandbox-result').classList.add('active');
 
