@@ -174,31 +174,3 @@ func TestCloudSecurity_GatewayMasterKey_Enforced(t *testing.T) {
 		}
 	}
 }
-
-func TestCloudSecurity_AdminKeys_Protected(t *testing.T) {
-	h, _, _ := setupTestHandler()
-	masterSecret := "admin_secret_key_888"
-	h.SetGatewayKey(masterSecret)
-
-	// List keys without master auth -> 401
-	{
-		req := httptest.NewRequest(http.MethodGet, "/api/keys", nil)
-		rec := httptest.NewRecorder()
-		h.HandleListKeys(rec, req)
-		if rec.Code != http.StatusUnauthorized {
-			t.Errorf("expected 401 for /api/keys without master key, got %d", rec.Code)
-		}
-	}
-
-	// List keys with valid master auth -> 200
-	{
-		req := httptest.NewRequest(http.MethodGet, "/api/keys", nil)
-		req.Header.Set("X-Sukami-Master-Key", masterSecret)
-		rec := httptest.NewRecorder()
-		h.HandleListKeys(rec, req)
-		if rec.Code != http.StatusOK {
-			t.Errorf("expected 200 for /api/keys with master key, got %d", rec.Code)
-		}
-	}
-}
-

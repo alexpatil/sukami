@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sukami/pkg/auth"
 	"sukami/pkg/cache"
+	"sukami/pkg/gateway"
 	"sukami/pkg/metrics"
 	"sukami/pkg/proxy"
 	"sync/atomic"
@@ -68,8 +69,8 @@ func setupE2EEnvironment(t *testing.T) (upstreamServer *httptest.Server, gateway
 	keyStore := auth.NewMemoryKeyStore()
 	limiter := auth.NewRateLimiter()
 	proxyHandler := proxy.NewHandler(memCache, tracker, keyStore, limiter, upstreamServer.URL)
-	gatewayRouter := proxy.NewRouter(proxyHandler)
-	gatewayServer = httptest.NewServer(gatewayRouter)
+	gw := gateway.New(proxyHandler, tracker, keyStore, "")
+	gatewayServer = httptest.NewServer(gw.Router())
 
 	return upstreamServer, gatewayServer, &callCount
 }

@@ -13,6 +13,7 @@ import (
 	"sukami/pkg/auth"
 	"sukami/pkg/cache"
 	"sukami/pkg/config"
+	"sukami/pkg/gateway"
 	"sukami/pkg/metrics"
 	"sukami/pkg/proxy"
 	"syscall"
@@ -63,11 +64,12 @@ func main() {
 	authStore := auth.NewMemoryKeyStore()
 	limiter := auth.NewRateLimiter()
 	proxyHandler := proxy.NewHandler(memoryCache, tracker, authStore, limiter, upstreamURL)
-	if gwKey := strings.TrimSpace(os.Getenv("SUKAMI_API_KEY")); gwKey != "" {
-		proxyHandler.SetGatewayKey(gwKey)
-		slog.Info("🔒 Cloud Security Mode: Gateway master authentication active")
-	} else if gwKey := strings.TrimSpace(os.Getenv("GATEWAY_KEY")); gwKey != "" {
-		proxyHandler.SetGatewayKey(gwKey)
+	masterKey := strings.TrimSpace(os.Getenv("SUKAMI_API_KEY"))
+	if masterKey == "" {
+		masterKey = strings.TrimSpace(os.Getenv("GATEWAY_KEY"))
+	}
+	if masterKey != "" {
+		proxyHandler.SetGatewayKey(masterKey)
 		slog.Info("🔒 Cloud Security Mode: Gateway master authentication active")
 	}
 
@@ -82,12 +84,12 @@ func main() {
 		}
 	}()
 
-	// 3. Register modern Go 1.22+ ServeMux routes via proxy.NewRouter
-	router := proxy.NewRouter(proxyHandler)
+	// 3. Initialize Gateway Router
+	gw := gateway.New(proxyHandler, tracker, authStore, masterKey)
 
 	server := &http.Server{
 		Addr:              ":" + port,
-		Handler:           router,
+		Handler:           gw.Router(),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       30 * time.Second,
 		WriteTimeout:      120 * time.Second,
