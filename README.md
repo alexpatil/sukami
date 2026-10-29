@@ -1,5 +1,10 @@
 <div align="center">
 
+<img src="https://repository-images.githubusercontent.com/1432389674/c046d1bc-754b-44ee-8431-c32f71b7f37a" alt="Sukami - Open-source AI infrastructure in Go" width="100%" />
+
+<br />
+<br />
+
 # ⚡ Sukami
 
 **OpenAI-compatible caching proxy and token optimizer in pure Go.**
