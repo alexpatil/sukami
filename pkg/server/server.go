@@ -1,4 +1,4 @@
-package gateway
+package server
 
 import (
 	"encoding/json"
@@ -12,17 +12,17 @@ import (
 	"sukami/pkg/proxy"
 )
 
-// Gateway represents the HTTP entrypoint and control plane router.
-type Gateway struct {
+// Server represents the HTTP entrypoint and routing engine.
+type Server struct {
 	proxyHandler *proxy.Handler
 	tracker      *metrics.Tracker
 	authStore    auth.KeyStore
 	masterKey    string
 }
 
-// New constructs an operational gateway router instance.
-func New(proxyHandler *proxy.Handler, tracker *metrics.Tracker, authStore auth.KeyStore, masterKey string) *Gateway {
-	return &Gateway{
+// New constructs an operational server instance.
+func New(proxyHandler *proxy.Handler, tracker *metrics.Tracker, authStore auth.KeyStore, masterKey string) *Server {
+	return &Server{
 		proxyHandler: proxyHandler,
 		tracker:      tracker,
 		authStore:    authStore,
@@ -45,20 +45,20 @@ func CorsMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// Router builds and returns the complete HTTP request multiplexer for the gateway.
-func (gw *Gateway) Router() http.Handler {
+// Router builds and returns the complete HTTP request multiplexer for the server.
+func (s *Server) Router() http.Handler {
 	mux := http.NewServeMux()
 
 	// OpenAI-compatible Proxy Data Plane
-	mux.HandleFunc("POST /v1/chat/completions", gw.proxyHandler.HandleChatCompletions)
-	mux.HandleFunc("GET /v1/models", gw.proxyHandler.HandleModels)
+	mux.HandleFunc("POST /v1/chat/completions", s.proxyHandler.HandleChatCompletions)
+	mux.HandleFunc("GET /v1/models", s.proxyHandler.HandleModels)
 
-	// Control Plane & Observability
-	mux.HandleFunc("GET /metrics", gw.HandlePrometheusMetrics)
-	mux.HandleFunc("GET /api/metrics", gw.HandleMetrics)
-	mux.HandleFunc("GET /api/keys", gw.HandleListKeys)
-	mux.HandleFunc("POST /api/keys", gw.HandleCreateKey)
-	mux.HandleFunc("DELETE /api/keys", gw.HandleDeleteKey)
+	// Observability & Metrics
+	mux.HandleFunc("GET /metrics", s.HandlePrometheusMetrics)
+	mux.HandleFunc("GET /api/metrics", s.HandleMetrics)
+	mux.HandleFunc("GET /api/keys", s.HandleListKeys)
+	mux.HandleFunc("POST /api/keys", s.HandleCreateKey)
+	mux.HandleFunc("DELETE /api/keys", s.HandleDeleteKey)
 
 	// System Health & Service Descriptor
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
@@ -78,31 +78,31 @@ func (gw *Gateway) Router() http.Handler {
 }
 
 // HandleMetrics returns operational metrics summary.
-func (gw *Gateway) HandleMetrics(w http.ResponseWriter, r *http.Request) {
-	summary := gw.tracker.GetSummary()
+func (s *Server) HandleMetrics(w http.ResponseWriter, r *http.Request) {
+	summary := s.tracker.GetSummary()
 	writeJSON(w, http.StatusOK, summary)
 }
 
 // HandlePrometheusMetrics returns standard Prometheus exposition format text.
-func (gw *Gateway) HandlePrometheusMetrics(w http.ResponseWriter, r *http.Request) {
+func (s *Server) HandlePrometheusMetrics(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte(gw.tracker.FormatPrometheus()))
+	_, _ = w.Write([]byte(s.tracker.FormatPrometheus()))
 }
 
-func (gw *Gateway) isMasterAuth(r *http.Request) bool {
-	if gw.masterKey == "" {
+func (s *Server) isMasterAuth(r *http.Request) bool {
+	if s.masterKey == "" {
 		return true
 	}
 	for _, header := range []string{"X-Sukami-Master-Key", "X-Sukami-Key"} {
 		if val := strings.TrimSpace(r.Header.Get(header)); val != "" {
-			if strings.TrimPrefix(val, "Bearer ") == gw.masterKey {
+			if strings.TrimPrefix(val, "Bearer ") == s.masterKey {
 				return true
 			}
 		}
 	}
 	rawAuth := strings.TrimSpace(r.Header.Get("Authorization"))
-	return strings.TrimPrefix(rawAuth, "Bearer ") == gw.masterKey
+	return strings.TrimPrefix(rawAuth, "Bearer ") == s.masterKey
 }
 
 // CreateKeyRequest represents incoming payload for new tenant key.
@@ -112,18 +112,18 @@ type CreateKeyRequest struct {
 }
 
 // HandleListKeys returns all registered tenant API keys.
-func (gw *Gateway) HandleListKeys(w http.ResponseWriter, r *http.Request) {
-	if !gw.isMasterAuth(r) {
+func (s *Server) HandleListKeys(w http.ResponseWriter, r *http.Request) {
+	if !s.isMasterAuth(r) {
 		writeError(w, http.StatusUnauthorized, "Unauthorized: Master API key required")
 		return
 	}
-	keys := gw.authStore.ListKeys()
+	keys := s.authStore.ListKeys()
 	writeJSON(w, http.StatusOK, keys)
 }
 
 // HandleCreateKey provisions a new tenant API key.
-func (gw *Gateway) HandleCreateKey(w http.ResponseWriter, r *http.Request) {
-	if !gw.isMasterAuth(r) {
+func (s *Server) HandleCreateKey(w http.ResponseWriter, r *http.Request) {
+	if !s.isMasterAuth(r) {
 		writeError(w, http.StatusUnauthorized, "Unauthorized: Master API key required")
 		return
 	}
@@ -133,7 +133,7 @@ func (gw *Gateway) HandleCreateKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	key, err := gw.authStore.CreateKey(req.Name, req.Tier)
+	key, err := s.authStore.CreateKey(req.Name, req.Tier)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
@@ -143,8 +143,8 @@ func (gw *Gateway) HandleCreateKey(w http.ResponseWriter, r *http.Request) {
 }
 
 // HandleDeleteKey revokes an API key.
-func (gw *Gateway) HandleDeleteKey(w http.ResponseWriter, r *http.Request) {
-	if !gw.isMasterAuth(r) {
+func (s *Server) HandleDeleteKey(w http.ResponseWriter, r *http.Request) {
+	if !s.isMasterAuth(r) {
 		writeError(w, http.StatusUnauthorized, "Unauthorized: Master API key required")
 		return
 	}
@@ -154,7 +154,7 @@ func (gw *Gateway) HandleDeleteKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	revoked := gw.authStore.RevokeKey(key)
+	revoked := s.authStore.RevokeKey(key)
 	writeJSON(w, http.StatusOK, map[string]any{"revoked": revoked})
 }
 

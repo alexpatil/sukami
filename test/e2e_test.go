@@ -9,15 +9,15 @@ import (
 	"strings"
 	"sukami/pkg/auth"
 	"sukami/pkg/cache"
-	"sukami/pkg/gateway"
 	"sukami/pkg/metrics"
 	"sukami/pkg/proxy"
+	"sukami/pkg/server"
 	"sync/atomic"
 	"testing"
 	"time"
 )
 
-func setupE2EEnvironment(t *testing.T) (upstreamServer *httptest.Server, gatewayServer *httptest.Server, upstreamCallCounter *int64) {
+func setupE2EEnvironment(t *testing.T) (upstreamServer *httptest.Server, sukamiServer *httptest.Server, upstreamCallCounter *int64) {
 	var callCount int64
 
 	// 1. Mock Upstream LLM Server
@@ -63,34 +63,34 @@ func setupE2EEnvironment(t *testing.T) (upstreamServer *httptest.Server, gateway
 		http.NotFound(w, r)
 	}))
 
-	// 2. Sukami Gateway Server
+	// 2. Sukami Core Server
 	memCache := cache.NewMemoryCache(1 * time.Hour)
 	tracker := metrics.NewTracker(50)
 	keyStore := auth.NewMemoryKeyStore()
 	limiter := auth.NewRateLimiter()
 	proxyHandler := proxy.NewHandler(memCache, tracker, keyStore, limiter, upstreamServer.URL)
-	gw := gateway.New(proxyHandler, tracker, keyStore, "")
-	gatewayServer = httptest.NewServer(gw.Router())
+	srv := server.New(proxyHandler, tracker, keyStore, "")
+	sukamiServer = httptest.NewServer(srv.Router())
 
-	return upstreamServer, gatewayServer, &callCount
+	return upstreamServer, sukamiServer, &callCount
 }
 
 func TestE2E_FullGatewayLifecycle(t *testing.T) {
-	upstreamServer, gatewayServer, callCounter := setupE2EEnvironment(t)
+	upstreamServer, sukamiServer, callCounter := setupE2EEnvironment(t)
 	defer upstreamServer.Close()
-	defer gatewayServer.Close()
+	defer sukamiServer.Close()
 
-	client := gatewayServer.Client()
+	client := sukamiServer.Client()
 
 	// 1. Health and Root JSON Descriptors
 	{
-		resp, err := client.Get(gatewayServer.URL + "/health")
+		resp, err := client.Get(sukamiServer.URL + "/health")
 		if err != nil || resp.StatusCode != http.StatusOK {
 			t.Fatalf("GET /health failed: status %d, err %v", resp.StatusCode, err)
 		}
 		resp.Body.Close()
 
-		respRoot, err := client.Get(gatewayServer.URL + "/")
+		respRoot, err := client.Get(sukamiServer.URL + "/")
 		if err != nil || respRoot.StatusCode != http.StatusOK {
 			t.Fatalf("GET / failed: status %d, err %v", respRoot.StatusCode, err)
 		}
@@ -103,7 +103,7 @@ func TestE2E_FullGatewayLifecycle(t *testing.T) {
 
 	// 2. Transparent /v1/models Proxying
 	{
-		req, _ := http.NewRequest(http.MethodGet, gatewayServer.URL+"/v1/models", nil)
+		req, _ := http.NewRequest(http.MethodGet, sukamiServer.URL+"/v1/models", nil)
 		req.Header.Set("Authorization", "Bearer test-upstream-key")
 		resp, err := client.Do(req)
 		if err != nil || resp.StatusCode != http.StatusOK {
@@ -119,7 +119,7 @@ func TestE2E_FullGatewayLifecycle(t *testing.T) {
 	// 3. Chat Completion: Request 1 (Cache MISS)
 	chatPayload := `{"model":"mock-gpt-4o","messages":[{"role":"user","content":"Explain Go concurrency channels in simple words."}]}`
 	{
-		req, _ := http.NewRequest(http.MethodPost, gatewayServer.URL+"/v1/chat/completions", strings.NewReader(chatPayload))
+		req, _ := http.NewRequest(http.MethodPost, sukamiServer.URL+"/v1/chat/completions", strings.NewReader(chatPayload))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer test-upstream-key")
 		resp, err := client.Do(req)
@@ -140,7 +140,7 @@ func TestE2E_FullGatewayLifecycle(t *testing.T) {
 
 	// 4. Chat Completion: Request 2 (Cache HIT - Zero Upstream Overhead)
 	{
-		req, _ := http.NewRequest(http.MethodPost, gatewayServer.URL+"/v1/chat/completions", strings.NewReader(chatPayload))
+		req, _ := http.NewRequest(http.MethodPost, sukamiServer.URL+"/v1/chat/completions", strings.NewReader(chatPayload))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer test-upstream-key")
 		resp, err := client.Do(req)
@@ -162,7 +162,7 @@ func TestE2E_FullGatewayLifecycle(t *testing.T) {
 
 	// 5. Prometheus Observability Endpoint
 	{
-		resp, err := client.Get(gatewayServer.URL + "/metrics")
+		resp, err := client.Get(sukamiServer.URL + "/metrics")
 		if err != nil || resp.StatusCode != http.StatusOK {
 			t.Fatalf("GET /metrics failed: status %d, err %v", resp.StatusCode, err)
 		}
@@ -180,7 +180,7 @@ func TestE2E_FullGatewayLifecycle(t *testing.T) {
 	// 6. Multi-Tenant Key Lifecycle & Rate Limiting
 	{
 		createKeyBody := `{"name":"E2E Tenant","tier":"free"}`
-		respKey, err := client.Post(gatewayServer.URL+"/api/keys", "application/json", bytes.NewBufferString(createKeyBody))
+		respKey, err := client.Post(sukamiServer.URL+"/api/keys", "application/json", bytes.NewBufferString(createKeyBody))
 		if err != nil || respKey.StatusCode != http.StatusCreated {
 			t.Fatalf("POST /api/keys failed: %v", err)
 		}

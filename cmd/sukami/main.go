@@ -13,16 +13,16 @@ import (
 	"sukami/pkg/auth"
 	"sukami/pkg/cache"
 	"sukami/pkg/config"
-	"sukami/pkg/gateway"
 	"sukami/pkg/metrics"
 	"sukami/pkg/proxy"
+	"sukami/pkg/server"
 	"syscall"
 	"time"
 )
 
 func main() {
 	// 0. Parse CLI Flags (Priority: CLI Flag > Environment Variable)
-	portFlag := flag.String("port", "", "Port to run the gateway on (default: $PORT or 8080)")
+	portFlag := flag.String("port", "", "Port to run the server on (default: $PORT or 8080)")
 	upstreamFlag := flag.String("upstream", "", "Upstream LLM API endpoint (e.g. $UPSTREAM_URL)")
 	flag.StringVar(portFlag, "p", "", "Shorthand for --port")
 	flag.Usage = func() {
@@ -70,7 +70,7 @@ func main() {
 	}
 	if masterKey != "" {
 		proxyHandler.SetGatewayKey(masterKey)
-		slog.Info("🔒 Cloud Security Mode: Gateway master authentication active")
+		slog.Info("🔒 Cloud Security Mode: Master authentication active")
 	}
 
 	// Fetch live model pricing dynamically from pricing API on boot (zero hardcoding)
@@ -84,12 +84,12 @@ func main() {
 		}
 	}()
 
-	// 3. Initialize Gateway Router
-	gw := gateway.New(proxyHandler, tracker, authStore, masterKey)
+	// 3. Initialize HTTP Server
+	srv := server.New(proxyHandler, tracker, authStore, masterKey)
 
-	server := &http.Server{
+	httpServer := &http.Server{
 		Addr:              ":" + port,
-		Handler:           gw.Router(),
+		Handler:           srv.Router(),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       30 * time.Second,
 		WriteTimeout:      120 * time.Second,
@@ -105,7 +105,7 @@ func main() {
 			"port", port,
 			"upstream", upstreamURL,
 		)
-		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			slog.Error("Server failed to start", "err", err)
 			os.Exit(1)
 		}
@@ -117,7 +117,7 @@ func main() {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	if err := server.Shutdown(shutdownCtx); err != nil {
+	if err := httpServer.Shutdown(shutdownCtx); err != nil {
 		slog.Error("Server shutdown error", "err", err)
 	} else {
 		slog.Info("Server stopped cleanly.")
