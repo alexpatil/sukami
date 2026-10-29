@@ -47,7 +47,7 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
         run: |
           mkdir -p dist
-          go build -ldflags="-s -w" -o dist/${{ matrix.output }} ./cmd/sukami
+          go build -ldflags="-s -w -X 'sukami/pkg/api.Version=${{ github.ref_name }}'" -o dist/${{ matrix.output }} ./cmd/sukami
 
       - name: Upload Binary Artifact
         uses: actions/upload-artifact@v4

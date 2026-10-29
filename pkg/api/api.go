@@ -12,6 +12,9 @@ import (
 	"sukami/pkg/proxy"
 )
 
+// Version represents the release version of the Sukami gateway.
+var Version = "v0.2.0"
+
 // API represents the HTTP API surface and routing engine.
 type API struct {
 	proxyHandler *proxy.Handler
@@ -71,7 +74,7 @@ func (a *API) Router() http.Handler {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintf(w, `{"service":"sukami","version":"v0.1.0","status":"healthy","docs":"https://github.com/alexpatil/sukami"}`+"\n")
+		fmt.Fprintf(w, `{"service":"sukami","version":"%s","status":"healthy","docs":"https://github.com/alexpatil/sukami"}`+"\n", Version)
 	})
 
 	return CorsMiddleware(mux)
