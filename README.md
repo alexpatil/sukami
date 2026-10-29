@@ -1,35 +1,48 @@
 <div align="center">
 
-# ⚡Sukami
+# ⚡ Sukami
 
-**High-Performance AI Gateway & Token Optimization Proxy in Pure Go**
+**OpenAI-compatible caching proxy and token optimizer in pure Go.**
 
 [![CI](https://img.shields.io/github/actions/workflow/status/alexpatil/sukami/ci.yml?branch=main&style=flat-square&logo=githubactions&logoColor=white&label=CI)](https://github.com/alexpatil/sukami/actions/workflows/ci.yml)
-[![Latest Release](https://img.shields.io/github/v/release/alexpatil/sukami?style=flat-square&logo=github&color=blue)](https://github.com/alexpatil/sukami/releases)
-[![XERJ Corpus Hub contributor](https://hub.xerj.org/contributors/alexpatil/badge.svg)](https://hub.xerj.org/contributors/alexpatil)
+[![Release](https://img.shields.io/github/v/release/alexpatil/sukami?style=flat-square&logo=github&color=blue)](https://github.com/alexpatil/sukami/releases)
 [![Go Version](https://img.shields.io/badge/Go-1.22+-00ADD8?style=flat-square&logo=go&logoColor=white)](https://go.dev)
 [![License: MIT](https://img.shields.io/badge/License-MIT-6B7280?style=flat-square)](LICENSE)
-[![Pure Go](https://img.shields.io/badge/dependencies-zero-4ADE80?style=flat-square)](go.mod)
-[![Docker](https://img.shields.io/badge/Docker-~10MB-0EA5E9?style=flat-square&logo=docker&logoColor=white)](https://hub.docker.com)
+[![Zero Dependencies](https://img.shields.io/badge/dependencies-zero-4ADE80?style=flat-square)](go.mod)
+[![Docker](https://img.shields.io/badge/Docker-~10MB-0EA5E9?style=flat-square&logo=docker&logoColor=white)](https://github.com/alexpatil/sukami/pkgs/container/sukami)
+
+<br />
+
+[Quickstart](#quickstart) • [Usage](#usage) • [Features](#features) • [Configuration](#configuration) • [Benchmarks](#benchmarks) • [Architecture](docs/ARCHITECTURE.md)
 
 </div>
 
 ---
 
-Sukami is a drop-in OpenAI-compatible gateway that transparently reduces token consumption by 20–35% and serves semantically equivalent requests from a sub-10ms in-memory vector cache without modifying a single line of application code.
+Sukami sits between your application and upstream LLM providers (OpenAI, Groq, DeepSeek, OpenRouter, Ollama). It prunes conversational filler from prompts, serves repeated queries from an in-memory vector cache in under 10ms, and exports Prometheus metrics—without changing your application logic.
 
-It is a single static binary. Zero runtime dependencies. No YAML configuration required.
+- **Zero dependencies** — Built exclusively with the Go standard library, single static binary (~10MB).
+- **Drop-in integration** — Works with official OpenAI SDKs by changing only the `base_url`.
+- **In-memory cache** — Cosine vector similarity with entity and opposites collision guards.
+- **Fast execution** — Pruning runs in <50µs; routing decisions in <10µs; cache hits in <10ms.
 
 ---
 
 ## Quickstart
 
-### 1. Download or Run
+### Option A: Standalone Binary
 
-**Option A: Pre-compiled standalone binary (No Go required)**
-Download the latest static binary for Linux, macOS, or Windows from [GitHub Releases](https://github.com/alexpatil/sukami/releases).
+Download the pre-compiled binary for Linux, macOS, or Windows from [Releases](https://github.com/alexpatil/sukami/releases):
 
-**Option B: Run with Go (1.22+)**
+```bash
+# Example for Linux (amd64)
+curl -L -o sukami https://github.com/alexpatil/sukami/releases/latest/download/sukami-linux-amd64
+chmod +x sukami
+./sukami
+```
+
+### Option B: Run with Go (1.22+)
+
 ```bash
 git clone https://github.com/alexpatil/sukami.git
 cd sukami
@@ -37,36 +50,55 @@ cp .env.example .env  # optional configuration
 go run ./cmd/sukami
 ```
 
-**Option C: Run with Docker**
+### Option C: Run with Docker
+
 ```bash
 docker compose up -d
 ```
 
-The gateway and embedded developer dashboard start at `http://localhost:8080`. No further configuration is required.
+The gateway and developer dashboard start at `http://localhost:8080`.
 
 ---
 
-## Drop-in Integration
+## Usage
 
-Change one line. Nothing else.
+Point your existing OpenAI client to `http://localhost:8080/v1`:
 
-**Python (OpenAI SDK)**
+### Python
 
 ```python
 from openai import OpenAI
 
 client = OpenAI(
-    api_key="sk-...",
-    base_url="http://localhost:8080/v1",  # only this line changes
+    api_key="your-api-key",
+    base_url="http://localhost:8080/v1",
 )
 
 response = client.chat.completions.create(
     model="gpt-4o",
-    messages=[{"role": "user", "content": "Compare PostgreSQL and MongoDB."}],
+    messages=[{"role": "user", "content": "How do goroutines communicate in Go?"}],
 )
+print(response.choices[0].message.content)
 ```
 
-**cURL**
+### Node.js / TypeScript
+
+```typescript
+import OpenAI from "openai";
+
+const client = new OpenAI({
+  apiKey: "your-api-key",
+  baseURL: "http://localhost:8080/v1",
+});
+
+const response = await client.chat.completions.create({
+  model: "gpt-4o",
+  messages: [{ role: "user", content: "How do goroutines communicate in Go?" }],
+});
+console.log(response.choices[0].message.content);
+```
+
+### cURL
 
 ```bash
 curl http://localhost:8080/v1/chat/completions \
@@ -74,78 +106,18 @@ curl http://localhost:8080/v1/chat/completions \
   -H "Authorization: Bearer $OPENAI_API_KEY" \
   -d '{
     "model": "gpt-4o",
-    "messages": [{"role": "user", "content": "Compare PostgreSQL and MongoDB."}]
+    "messages": [{"role": "user", "content": "How do goroutines communicate in Go?"}]
   }'
 ```
 
-The response is a standard OpenAI JSON object. No schema changes, no wrapper fields.
-
----
-
-## How It Works
-
-Sukami operates as a transparent middleware layer on every request.
-
-**1. Transparent Prompt Pruning**
-Strips conversational filler prefixes and redundant whitespace before the request reaches the upstream provider. Code blocks, markdown indentation, and prompt semantics are preserved unconditionally. Net result: 20–35% fewer input tokens billed.
-
-**2. Sub-10ms Semantic Vector Cache**
-Incoming prompts are embedded and matched against cached results using cosine similarity. Two conflict guards protect cache correctness:
-- **Entity Collision Guard** — prevents false positives between distinct technical subjects (e.g., Docker vs. Kubernetes).
-- **Opposites Conflict Guard** — prevents cache hits across antonymic intent (e.g., `delete` vs. `backup`, `encrypt` vs. `decrypt`).
-
-**3. Smart Multi-Provider & Model Routing**
-Routes automatically across OpenAI, Groq Cloud, DeepSeek, OpenRouter, and Ollama. When enabled (`X-Sukami-Smart-Route: true`), evaluates prompt complexity in <10µs to route low-complexity queries from expensive flagship models (`gpt-4o`, `claude-3.5-sonnet`) to high-speed economy equivalents (`gpt-4o-mini`, `claude-3.5-haiku`), cutting token costs by 80–95% while preserving flagship models for complex code and multi-step reasoning.
-
-**4. Native Prometheus Observability**
-A built-in Prometheus 0.0.4-compatible exporter is available at `GET /metrics`. Tracks request volume, cache hit ratio, token savings, and real-time dollar savings computed from live model pricing.
-
----
-
-## Benchmark
-
-Workload: enterprise comparative technical evaluation (PostgreSQL vs. MongoDB).
-
-| Path               | Output Tokens | Latency  | Cost vs. Direct |
-|--------------------|---------------|----------|-----------------|
-| Direct upstream    | 3,072         | 7.33s    | 100%            |
-| Via Sukami         | 1,979         | 4.50s    | ~64% (−35.6%)   |
-| Semantic cache hit | —             | < 10ms   | 0%              |
-
-**38.6% faster. 35.6% fewer tokens. ~$750 saved per 100,000 queries.**
-
-Reproduce with:
-
-```bash
-go run ./cmd/sukami-bench
-```
-
----
-
-## Observability
-
-```
-GET /metrics
-```
-
-Sukami exports standard Prometheus text format. Key metrics:
-
-| Metric | Description |
-|---|---|
-| `sukami_requests_total` | Total proxied requests processed |
-| `sukami_cache_hits_total` | Semantic cache hits served without upstream calls |
-| `sukami_cache_hit_ratio` | Real-time semantic cache hit ratio (0.0 to 1.0) |
-| `sukami_tokens_saved_total` | Cumulative input tokens eliminated by pruning |
-| `sukami_cost_saved_usd_total` | Dollar savings computed dynamically from live model pricing |
-
-Plug into any Prometheus-compatible stack—Grafana, Datadog Agent, VictoriaMetrics—with no additional configuration.
+The response is a standard OpenAI JSON object with zero wrapper fields.
 
 ---
 
 ## Architecture
 
-```
-Client Request (OpenAI-compatible)
+```text
+Client Request (OpenAI SDK / cURL)
         │
         ▼
 ┌─────────────────────────────┐
@@ -159,7 +131,7 @@ Client Request (OpenAI-compatible)
              │
              ▼
 ┌─────────────────────────────┐
-│    Semantic Vector Cache    │  cosine similarity + entity & opposites collision guards
+│    Semantic Vector Cache    │  Cosine similarity (>0.85) + collision guards
 └────────────┬────────────────┘
              │ miss
              ▼
@@ -169,26 +141,81 @@ Client Request (OpenAI-compatible)
              │
              ▼
 ┌─────────────────────────────┐
-│   Prometheus Metrics Layer  │  tokens · latency · cost
+│   Prometheus Metrics Layer  │  Tokens · latency · live dynamic USD savings
 └─────────────────────────────┘
+```
+
+For complete technical specifications, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+---
+
+## Features
+
+- **Prompt Pruning** — Strips conversational filler ("Please kindly explain...") and redundant whitespace. Code blocks and markdown indentation are unconditionally preserved.
+- **In-Memory Semantic Cache** — Caches responses with cosine similarity matching (>0.85). Built-in entity and opposites guards prevent false positives between distinct concepts (e.g. `Docker` vs `Kubernetes`, `encrypt` vs `decrypt`).
+- **Smart Model Routing (Opt-in)** — Evaluates prompt complexity in <10µs without external API calls. Transparently routes simple queries from `gpt-4o` to `gpt-4o-mini` while preserving flagship models for complex code and multi-step reasoning.
+- **Cloud Security Mode** — Set `SUKAMI_API_KEY` to lock down the proxy on public servers. Rejects unauthenticated callers before cache access (Zero Cache Leak guarantee).
+- **Multi-Tenant Keys** — Create tenant keys with dedicated rate limits and usage tracking via `/api/keys`.
+- **Developer Dashboard** — Embedded single-page dashboard and live testing sandbox accessible at `http://localhost:8080`.
+- **Prometheus Metrics** — Exports standard Prometheus 0.0.4 metrics at `GET /metrics`.
+
+---
+
+## Configuration
+
+Sukami is configured via environment variables or CLI flags (`.env` supported):
+
+| Variable | Flag | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `PORT` | `-port`, `-p` | `8080` | Network port to listen on |
+| `UPSTREAM_URL` | `-upstream` | `https://api.openai.com/v1` | Default fallback upstream endpoint |
+| `SUKAMI_API_KEY` | — | *(empty)* | Master key. Enables Cloud Security Mode |
+| `ENABLE_SMART_ROUTING`| — | `false` | Enable automatic model complexity routing |
+| `ENABLE_OUTPUT_DENSITY`| — | `false` | Inject anti-fluff system prompt directive |
+| `OPENAI_API_KEY` | — | *(empty)* | Default OpenAI key if omitted from request headers |
+| `GROQ_API_KEY` | — | *(empty)* | Default Groq key for `llama-*` model requests |
+| `DEEPSEEK_API_KEY` | — | *(empty)* | Default DeepSeek key for `deepseek-*` requests |
+
+Copy `.env.example` to get started:
+
+```bash
+cp .env.example .env
 ```
 
 ---
 
-## Security & Cloud Deployment
+## Benchmarks
 
-Sukami runs in **Local Developer Mode** by default with zero configuration. For public cloud or remote server deployments, set `SUKAMI_API_KEY`:
+Workload: technical comparison (PostgreSQL vs. MongoDB).
+
+| Execution Path | Output Tokens | Latency | Finish Reason | Cost vs. Direct |
+| :--- | :---: | :---: | :---: | :---: |
+| **Direct Upstream (Raw)** | 3,072 | 7.33s | `length` (truncated) | 100% (Baseline) |
+| **Via Sukami (Pruned)** | 1,979 | 4.50s | `stop` (complete) | **~64% (−35.6%)** |
+| **Semantic Cache Hit** | 0 | < 10ms | `stop` (instant) | **0% (−100%)** |
+
+To reproduce against upstream providers:
 
 ```bash
-# Run in Cloud Security Mode
-export SUKAMI_API_KEY="your-secure-master-key"
-./sukami
+export OPENAI_API_KEY="sk-..."
+go run ./cmd/sukami-bench
 ```
 
-When enabled:
-- Incoming requests require `Authorization: Bearer <key>` or `X-Sukami-Master-Key`.
-- Unauthenticated requests are rejected with `401 Unauthorized` before cache access (zero cache leakage).
-- Tenant key management endpoints (`/api/keys`) are protected behind the master key.
+For detailed empirical methodology, see [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
+
+---
+
+## Observability
+
+Standard Prometheus metrics are available at `GET /metrics`:
+
+| Metric Name | Type | Description |
+| :--- | :--- | :--- |
+| `sukami_requests_total` | Counter | Total proxied requests processed |
+| `sukami_cache_hits_total` | Counter | Requests served directly from the semantic cache |
+| `sukami_cache_hit_ratio` | Gauge | Real-time semantic cache hit ratio (0.0 to 1.0) |
+| `sukami_tokens_saved_total` | Counter | Cumulative input tokens eliminated by pruning |
+| `sukami_cost_saved_usd_total` | Counter | Total USD saved computed from live model pricing |
 
 ---
 
@@ -209,12 +236,9 @@ go build -o bin/sukami ./cmd/sukami
 
 ## Roadmap
 
-Sukami is production-ready for single-node deployments. Planned capabilities:
-
-- [ ] **Distributed Cache Sync** — Multi-node cluster synchronization via Redis / Valkey.
-- [ ] **Team Budgets & Cost Caps** — Centralized department quotas and hard per-team spend limits.
-- [ ] **PII & Data Redaction** — Automated sensitive data masking for HIPAA / SOC2 compliance.
-- [ ] **Managed Cloud Gateway** — Dedicated zero-maintenance hosted offering.
+- [ ] **Multi-Architecture Container Image** — Automated publishing to GitHub Container Registry (GHCR).
+- [ ] **Terminal Demo Recording** — ASCII/GIF demonstration of pruning and cache hits.
+- [ ] **Distributed Cache Sync** — Multi-node synchronization using Redis/Valkey.
 
 ---
 
@@ -224,4 +248,3 @@ Sukami is production-ready for single-node deployments. Planned capabilities:
 - **Bug Reports**: [GitHub Issues](https://github.com/alexpatil/sukami/issues)
 - **Maintainer**: Ganesh Shinde ([codingpenin@gmail.com](mailto:codingpenin@gmail.com))
 - **License**: MIT License © Ganesh Shinde. See [LICENSE](LICENSE) for full terms.
-
