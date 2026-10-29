@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"sukami/pkg/auth"
 	"sukami/pkg/cache"
@@ -150,6 +151,14 @@ func TestResolveUpstreamAuth(t *testing.T) {
 	}
 	if auth := resolveUpstreamAuth(req3); auth != "Bearer sk-proj-provider" {
 		t.Errorf("expected upstream auth 'Bearer sk-proj-provider', got '%s'", auth)
+	}
+
+	// Case 4: Environment fallback UPSTREAM_API_KEY
+	os.Setenv("UPSTREAM_API_KEY", "env-secret-key")
+	defer os.Unsetenv("UPSTREAM_API_KEY")
+	req4 := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+	if auth := resolveUpstreamAuth(req4); auth != "Bearer env-secret-key" {
+		t.Errorf("expected 'Bearer env-secret-key', got '%s'", auth)
 	}
 }
 

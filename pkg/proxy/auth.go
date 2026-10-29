@@ -100,10 +100,8 @@ func (h *Handler) resolveUpstreamAuth(r *http.Request) string {
 		return "Bearer " + cleanAuth
 	}
 
-	for _, envVar := range []string{"UPSTREAM_API_KEY", "OPENAI_API_KEY", "GROQ_API_KEY", "DEEPSEEK_API_KEY", "ANTHROPIC_API_KEY", "OPENROUTER_API_KEY", "GEMINI_API_KEY"} {
-		if val := os.Getenv(envVar); val != "" {
-			return "Bearer " + val
-		}
+	if val := os.Getenv("UPSTREAM_API_KEY"); val != "" {
+		return "Bearer " + val
 	}
 	return ""
 }

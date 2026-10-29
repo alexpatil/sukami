@@ -13,7 +13,7 @@ import (
 func TestCloudSecurity_ZeroCacheLeak_RejectBeforeCache(t *testing.T) {
 	// Ensure demo mode is OFF so auth is strictly required
 	os.Unsetenv("SUKAMI_DEMO_MODE")
-	os.Unsetenv("OPENAI_API_KEY")
+	os.Unsetenv("UPSTREAM_API_KEY")
 
 	h, _, _ := setupTestHandler()
 

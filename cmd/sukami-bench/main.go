@@ -17,28 +17,15 @@ import (
 func main() {
 	_ = config.LoadEnv(".env")
 
-	upstreamKey := os.Getenv("UPSTREAM_API_KEY")
-	openAIKey := os.Getenv("OPENAI_API_KEY")
-	groqKey := os.Getenv("GROQ_API_KEY")
-
-	apiKey := upstreamKey
-	upstreamURL := "https://api.openai.com/v1/chat/completions"
+	apiKey := os.Getenv("UPSTREAM_API_KEY")
+	upstreamURL := os.Getenv("UPSTREAM_URL")
+	if upstreamURL == "" {
+		upstreamURL = "https://api.openai.com/v1/chat/completions"
+	}
 	modelName := "gpt-4o"
 
 	if apiKey == "" {
-		if openAIKey != "" {
-			apiKey = openAIKey
-			upstreamURL = "https://api.openai.com/v1/chat/completions"
-			modelName = "gpt-4o"
-		} else if groqKey != "" {
-			apiKey = groqKey
-			upstreamURL = "https://api.groq.com/openai/v1/chat/completions"
-			modelName = "llama-3.3-70b-versatile"
-		}
-	}
-
-	if apiKey == "" {
-		fmt.Println("Error: No API key found. Set UPSTREAM_API_KEY, OPENAI_API_KEY, or GROQ_API_KEY in .env or environment")
+		fmt.Println("Error: No API key found. Set UPSTREAM_API_KEY in .env or environment")
 		return
 	}
 
