@@ -42,9 +42,9 @@ Sukami is a high-performance, zero-dependency AI Token Optimization Gateway and 
           injects anti-fluff directive into system prompt.
                       │
                       ▼
-         [ Multi-Provider Dynamic Router ]
-          Auto-routes by model/provider to:
-          OpenAI · Groq · DeepSeek · OpenRouter · Ollama
+         [ Transparent Upstream Proxy ]
+          Forwards to configured UPSTREAM_URL
+          or dynamic X-Upstream-Url header
                       │
                       ▼
       [ Upstream HTTP Forward / SSE Stream ]
