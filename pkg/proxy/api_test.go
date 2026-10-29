@@ -80,3 +80,4 @@ func TestHandlePrometheusMetrics(t *testing.T) {
 		t.Errorf("expected body to contain 'sukami_cost_saved_usd_total', got:\n%s", body)
 	}
 }
+

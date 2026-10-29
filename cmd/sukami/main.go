@@ -19,20 +19,6 @@ import (
 	"time"
 )
 
-func corsMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, X-Upstream-Key, X-Sukami-Key, X-Upstream-Url, X-Base-Url")
-
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
-}
-
 func main() {
 	// 0. Parse CLI Flags (Priority: CLI Flag > Environment Variable)
 	portFlag := flag.String("port", "", "Port to run the gateway on (default: $PORT or 8080)")
@@ -96,35 +82,12 @@ func main() {
 		}
 	}()
 
-	// 3. Register modern Go 1.22+ ServeMux routes
-	mux := http.NewServeMux()
-
-	// OpenAI-compatible endpoints
-	mux.HandleFunc("POST /v1/chat/completions", proxyHandler.HandleChatCompletions)
-	mux.HandleFunc("GET /v1/models", proxyHandler.HandleModels)
-
-	// Observability & Multi-Tenant Keys
-	mux.HandleFunc("GET /metrics", proxyHandler.HandlePrometheusMetrics)
-	mux.HandleFunc("GET /api/metrics", proxyHandler.HandleMetrics)
-	mux.HandleFunc("GET /api/keys", proxyHandler.HandleListKeys)
-	mux.HandleFunc("POST /api/keys", proxyHandler.HandleCreateKey)
-	mux.HandleFunc("DELETE /api/keys", proxyHandler.HandleDeleteKey)
-	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintf(w, `{"status":"ok","timestamp":"%s"}`+"\n", time.Now().UTC().Format(time.RFC3339))
-	})
-	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/" {
-			http.NotFound(w, r)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintf(w, `{"service":"sukami","version":"v0.1.0","status":"healthy","docs":"https://github.com/alexpatil/sukami"}`+"\n")
-	})
+	// 3. Register modern Go 1.22+ ServeMux routes via proxy.NewRouter
+	router := proxy.NewRouter(proxyHandler)
 
 	server := &http.Server{
 		Addr:              ":" + port,
-		Handler:           corsMiddleware(mux),
+		Handler:           router,
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       30 * time.Second,
 		WriteTimeout:      120 * time.Second,

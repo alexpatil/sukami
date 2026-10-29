@@ -115,3 +115,4 @@ func TestHandleChatCompletions_SmartRoute_FlagshipPreserved(t *testing.T) {
 		t.Errorf("expected no model change for complex code prompt, got %s", rec.Header().Get("X-Sukami-Routed-Model"))
 	}
 }
+

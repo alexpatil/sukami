@@ -40,3 +40,4 @@ func TestResolveUpstreamTarget(t *testing.T) {
 		t.Errorf("expected empty target for unconfigured upstream, got %s", target)
 	}
 }
+

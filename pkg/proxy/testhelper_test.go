@@ -15,3 +15,4 @@ func setupTestHandler() (*Handler, auth.KeyStore, *metrics.Tracker) {
 	h := NewHandler(c, t, ks, limiter, "https://api.groq.com/openai")
 	return h, ks, t
 }
+
