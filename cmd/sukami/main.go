@@ -36,7 +36,7 @@ func corsMiddleware(next http.Handler) http.Handler {
 func main() {
 	// 0. Parse CLI Flags (Priority: CLI Flag > Environment Variable > Default)
 	portFlag := flag.String("port", "", "Port to run the gateway on (default: $PORT or 8080)")
-	upstreamFlag := flag.String("upstream", "", "Upstream LLM API endpoint (default: $UPSTREAM_URL or https://api.openai.com)")
+	upstreamFlag := flag.String("upstream", "", "Upstream LLM API endpoint (default: $UPSTREAM_URL or https://api.openai.com/v1)")
 	flag.StringVar(portFlag, "p", "", "Shorthand for --port")
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Sukami AI Token Optimization Gateway\n\nUsage:\n  sukami [flags]\n\nFlags:\n")

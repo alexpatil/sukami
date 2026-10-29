@@ -10,7 +10,9 @@ services:
       - "8080:8080"
     environment:
       - PORT=8080
-      - UPSTREAM_URL=https://api.openai.com
+      - UPSTREAM_URL=https://api.openai.com/v1
+      # Optional: Cloud Security Mode (lock down gateway on public cloud servers)
+      # - SUKAMI_API_KEY=your-secure-master-key
       # Optional: default provider keys (or pass dynamically via request headers)
       # - OPENAI_API_KEY=
       # - GROQ_API_KEY=
