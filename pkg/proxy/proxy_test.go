@@ -184,6 +184,13 @@ func TestResolveUpstreamTarget(t *testing.T) {
 	if target := h.resolveUpstreamTarget(req3); target != "https://api.groq.com/openai/v1/chat/completions" {
 		t.Errorf("expected default Groq target, got %s", target)
 	}
+
+	// 4. Unconfigured default upstream returns empty string
+	hEmpty := NewHandler(cache.NewMemoryCache(time.Hour), metrics.NewTracker(10), auth.NewMemoryKeyStore(), auth.NewRateLimiter(), "")
+	req4 := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+	if target := hEmpty.resolveUpstreamTarget(req4); target != "" {
+		t.Errorf("expected empty target for unconfigured upstream, got %s", target)
+	}
 }
 
 func TestHandlePrometheusMetrics(t *testing.T) {

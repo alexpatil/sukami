@@ -5,9 +5,6 @@ import (
 	"strings"
 )
 
-// DefaultUpstreamURL is the standard fallback completions base endpoint when no upstream flag or custom routing is specified.
-const DefaultUpstreamURL = "https://api.openai.com/v1"
-
 // resolveUpstreamTarget dynamically determines the target completions URL.
 // Priority:
 // 1. Explicit request header: X-Upstream-Url or X-Base-Url
@@ -22,11 +19,17 @@ func (h *Handler) resolveUpstreamTarget(r *http.Request) string {
 	}
 
 	// 2. Default server upstream
+	if h.upstreamURL == "" {
+		return ""
+	}
 	return buildCompletionsURL(h.upstreamURL)
 }
 
 func buildCompletionsURL(base string) string {
 	trimmed := strings.TrimRight(strings.TrimSpace(base), "/")
+	if trimmed == "" {
+		return ""
+	}
 	if strings.HasSuffix(trimmed, "/chat/completions") {
 		return trimmed
 	}

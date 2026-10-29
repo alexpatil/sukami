@@ -25,9 +25,13 @@ func (h *Handler) forwardUpstream(
 	authHeader string,
 	start time.Time,
 ) {
-	optimizedBody, _ := json.Marshal(chatReq)
 	targetURL := h.resolveUpstreamTarget(r)
+	if targetURL == "" {
+		writeError(w, http.StatusBadRequest, "No upstream URL configured: provide X-Upstream-Url header or configure UPSTREAM_URL")
+		return
+	}
 
+	optimizedBody, _ := json.Marshal(chatReq)
 	upReq, err := http.NewRequestWithContext(r.Context(), http.MethodPost, targetURL, bytes.NewReader(optimizedBody))
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "Failed to create upstream request")
@@ -36,10 +40,6 @@ func (h *Handler) forwardUpstream(
 
 	upReq.Header.Set("Content-Type", "application/json")
 	upReq.Header.Set("Authorization", authHeader)
-	if strings.Contains(targetURL, "openrouter.ai") {
-		upReq.Header.Set("HTTP-Referer", "https://sukami.ai")
-		upReq.Header.Set("X-Title", "Sukami AI Gateway")
-	}
 
 	resp, err := h.httpClient.Do(upReq)
 	if err != nil {

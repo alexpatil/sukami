@@ -34,9 +34,9 @@ func corsMiddleware(next http.Handler) http.Handler {
 }
 
 func main() {
-	// 0. Parse CLI Flags (Priority: CLI Flag > Environment Variable > Default)
+	// 0. Parse CLI Flags (Priority: CLI Flag > Environment Variable)
 	portFlag := flag.String("port", "", "Port to run the gateway on (default: $PORT or 8080)")
-	upstreamFlag := flag.String("upstream", "", "Upstream LLM API endpoint (default: $UPSTREAM_URL or https://api.openai.com/v1)")
+	upstreamFlag := flag.String("upstream", "", "Upstream LLM API endpoint (e.g. $UPSTREAM_URL)")
 	flag.StringVar(portFlag, "p", "", "Shorthand for --port")
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Sukami AI Token Optimization Gateway\n\nUsage:\n  sukami [flags]\n\nFlags:\n")
@@ -62,13 +62,13 @@ func main() {
 		port = "8080"
 	}
 
-	// Resolve Upstream URL (CLI Flag > Environment Variable > Default)
+	// Resolve Upstream URL (CLI Flag > Environment Variable)
 	upstreamURL := *upstreamFlag
 	if upstreamURL == "" {
 		upstreamURL = os.Getenv("UPSTREAM_URL")
 	}
 	if upstreamURL == "" {
-		upstreamURL = proxy.DefaultUpstreamURL
+		slog.Warn("⚠️ No default UPSTREAM_URL configured. Incoming requests must provide X-Upstream-Url header.")
 	}
 
 	// 2. Initialize Core Subsystems

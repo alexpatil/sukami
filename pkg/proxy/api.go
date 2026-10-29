@@ -28,6 +28,10 @@ func (h *Handler) HandleModels(w http.ResponseWriter, r *http.Request) {
 	} else if custom := r.Header.Get("X-Base-Url"); custom != "" {
 		targetBase = custom
 	}
+	if targetBase == "" {
+		writeError(w, http.StatusBadRequest, "No upstream URL configured: provide X-Upstream-Url header or configure UPSTREAM_URL")
+		return
+	}
 
 	trimmed := strings.TrimRight(strings.TrimSpace(targetBase), "/")
 	trimmed = strings.TrimSuffix(trimmed, "/chat/completions")

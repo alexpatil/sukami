@@ -6,7 +6,11 @@ import (
 	"net/http/httptest"
 	"os"
 	"strings"
+	"sukami/pkg/auth"
+	"sukami/pkg/cache"
+	"sukami/pkg/metrics"
 	"testing"
+	"time"
 )
 
 func TestHandleModels_UnauthorizedWithoutGatewayAuth(t *testing.T) {
@@ -111,3 +115,20 @@ func TestHandleModels_WithCustomUpstreamHeader(t *testing.T) {
 	}
 }
 
+func TestHandleModels_NoUpstreamConfigured(t *testing.T) {
+	c := cache.NewMemoryCache(1 * time.Hour)
+	tr := metrics.NewTracker(10)
+	ks := auth.NewMemoryKeyStore()
+	lim := auth.NewRateLimiter()
+	h := NewHandler(c, tr, ks, lim, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/models", nil)
+	req.Header.Set("Authorization", "Bearer test-key")
+	rec := httptest.NewRecorder()
+
+	h.HandleModels(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 Bad Request when no upstream URL configured, got %d", rec.Code)
+	}
+}
