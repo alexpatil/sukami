@@ -6,8 +6,8 @@
 *.dll
 *.so
 *.dylib
-sukami
-sukami-*
+/sukami
+/sukami-*
 
 # Test and coverage artifacts
 *.test

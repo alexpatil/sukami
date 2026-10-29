@@ -41,21 +41,28 @@ func (h *Handler) HandleChatCompletions(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Multi-tenant API Key authentication and rate limiting
-	clientKey := resolveSukamiKey(r)
-	if clientKey != "" {
-		tenant, valid := h.authStore.Validate(clientKey)
-		if !valid {
-			writeError(w, http.StatusUnauthorized, "Unauthorized: Invalid Sukami API Key")
-			return
-		}
-		if !h.limiter.Allow(clientKey, tenant.RateLimitPerMin) {
+	// 1. Gateway & Tenant Authorization Check (Cloud Security Mode)
+	authorized, tenant := h.validateGatewayAuth(r)
+	if !authorized {
+		writeError(w, http.StatusUnauthorized, "Unauthorized: Invalid or missing gateway API key")
+		return
+	}
+	if tenant != nil {
+		if !h.limiter.Allow(tenant.Key, tenant.RateLimitPerMin) {
 			w.Header().Set("Retry-After", "60")
 			writeError(w, http.StatusTooManyRequests, fmt.Sprintf("Rate limit exceeded (%d req/min)", tenant.RateLimitPerMin))
 			return
 		}
 	}
 
+	// 2. Resolve Upstream Authorization BEFORE Cache Check (Strict Zero-Cache-Leak)
+	authHeader := h.resolveUpstreamAuth(r)
+	if authHeader == "" && os.Getenv("SUKAMI_DEMO_MODE") != "true" {
+		writeError(w, http.StatusUnauthorized, "Missing API key. Provide Authorization: Bearer <key> in request header or set UPSTREAM_API_KEY environment variable.")
+		return
+	}
+
+	clientKey := resolveSukamiKey(r)
 	userPrompt := extractUserPrompt(chatReq.Messages)
 
 	// Smart Prompt Complexity Model Router:
@@ -78,7 +85,7 @@ func (h *Handler) HandleChatCompletions(w http.ResponseWriter, r *http.Request) 
 		w.Header().Set("X-Sukami-Mapped-Model", "llama-3.3-70b-versatile")
 	}
 
-	// 1. Optimize input messages using model-specific token rules
+	// 3. Optimize input messages using model-specific token rules
 	comp := optimizer.OptimizeMessagesForModel(chatReq.Model, chatReq.Messages)
 	if clientKey != "" {
 		h.authStore.RecordTokenUsage(clientKey, comp.OptimizedTokens, comp.SavedTokens)
@@ -90,30 +97,24 @@ func (h *Handler) HandleChatCompletions(w http.ResponseWriter, r *http.Request) 
 	// Build deterministic hash key for semantic cache
 	cacheKey := cache.ComputeHash(cacheModel, buildPromptFingerprint(comp.Messages))
 
-	// 2. Check Semantic Cache (Exact Hash or Cosine Similarity > 0.85)
+	// 4. Check Semantic Cache (Exact Hash or Cosine Similarity > 0.85)
 	if cachedBytes, hit, sim := h.cache.GetSemantic(cacheModel, userPrompt, 0.85); hit {
 		h.respondFromCache(w, r, cachedBytes, chatReq, comp, reqID, userPrompt, sim, start)
 		return
 	}
 
-	// 3. Cache Miss: apply output density optimization if opted-in
+	// 5. Cache Miss: apply output density optimization if opted-in
 	if r.Header.Get("X-Sukami-Density") == "true" || os.Getenv("ENABLE_OUTPUT_DENSITY") == "true" {
 		optMessages, _ := optimizer.ApplyOutputOptimization(comp.Messages)
 		chatReq.Messages = optMessages
 	}
-	authHeader := resolveUpstreamAuth(r)
 
-	// Production standard: require API key unless demo mode is explicitly enabled
-	if authHeader == "" {
-		if os.Getenv("SUKAMI_DEMO_MODE") == "true" {
-			h.respondSimulated(w, r, chatReq, comp, cacheKey, cacheModel, reqID, userPrompt, start)
-			return
-		}
-		writeError(w, http.StatusUnauthorized, "Missing API key. Provide Authorization: Bearer <key> in request header or set UPSTREAM_API_KEY environment variable.")
+	if authHeader == "" && os.Getenv("SUKAMI_DEMO_MODE") == "true" {
+		h.respondSimulated(w, r, chatReq, comp, cacheKey, cacheModel, reqID, userPrompt, start)
 		return
 	}
 
-	// 4. Forward upstream to resolved provider target
+	// 6. Forward upstream to resolved provider target
 	h.forwardUpstream(w, r, chatReq, comp, cacheKey, cacheModel, reqID, userPrompt, authHeader, start)
 }
 
@@ -133,45 +134,46 @@ func (h *Handler) respondFromCache(
 	if similarity < 0.999 {
 		statusText = fmt.Sprintf("200 OK (Semantic %d%%)", int(similarity*100))
 	}
+	h.recordHitMetric(reqID, chatReq.Model, userPrompt, comp, start, statusText, cachedBytes)
 
-	outputSaved := 0
-	var cu struct {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("X-Cache", "HIT")
+	w.Header().Set("X-Sukami-Latency", fmt.Sprintf("%dms", latency))
+	w.Header().Set("X-Sukami-Savings", fmt.Sprintf("%.1f%%", comp.SavingsPercent))
+	w.Header().Set("X-Sukami-Pruned-Tokens", fmt.Sprintf("%d", comp.SavedTokens))
+	w.Header().Set("X-Sukami-Request-ID", reqID)
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(cachedBytes)
+}
+
+func (h *Handler) recordHitMetric(id, model, prompt string, comp optimizer.CompressionResult, start time.Time, status string, cachedBytes []byte) {
+	var cachedResp struct {
 		Usage struct {
 			CompletionTokens int `json:"completion_tokens"`
 		} `json:"usage"`
 	}
-	if json.Unmarshal(cachedBytes, &cu) == nil {
-		outputSaved = cu.Usage.CompletionTokens
+	outputSavedTokens := 0
+	if json.Unmarshal(cachedBytes, &cachedResp) == nil && cachedResp.Usage.CompletionTokens > 0 {
+		outputSavedTokens = cachedResp.Usage.CompletionTokens
 	}
 
-	totalSaved := comp.OriginalTokens + outputSaved
-	costUSD, _ := metrics.CalculateSavingsUSD(chatReq.Model, comp.OriginalTokens, outputSaved)
-	h.tracker.RecordRequest(metrics.RequestRecord{
-		ID:                reqID,
+	record := metrics.RequestRecord{
+		ID:                id,
 		Timestamp:         time.Now(),
-		Model:             chatReq.Model,
-		PromptPreview:     truncate(userPrompt, 60),
-		OriginalTokens:    totalSaved,
-		SavedTokens:       totalSaved,
+		Model:             model,
+		PromptPreview:     truncate(prompt, 60),
+		OriginalTokens:    comp.OriginalTokens + outputSavedTokens,
+		SavedTokens:       comp.OriginalTokens + outputSavedTokens,
 		InputSavedTokens:  comp.OriginalTokens,
-		OutputSavedTokens: outputSaved,
+		OutputSavedTokens: outputSavedTokens,
 		BilledTokens:      0,
 		SavingsPercent:    100.0,
-		CostSavedUSD:      costUSD,
 		CacheHit:          true,
-		LatencyMs:         latency,
-		Status:            statusText,
-	})
-
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("X-Cache", fmt.Sprintf("HIT (%.0f%%)", similarity*100))
-	w.Header().Set("X-Sukami-Saved-Tokens", fmt.Sprintf("%d", comp.OriginalTokens))
-
-	if chatReq.Stream {
-		h.streamCachedResponse(w, r, cachedBytes, chatReq.Model)
-		return
+		LatencyMs:         time.Since(start).Milliseconds(),
+		Status:            status,
 	}
 
-	w.WriteHeader(http.StatusOK)
-	w.Write(cachedBytes)
+	costUSD, _ := metrics.CalculateSavingsUSD(model, record.InputSavedTokens, record.OutputSavedTokens)
+	record.CostSavedUSD = costUSD
+	h.tracker.RecordRequest(record)
 }

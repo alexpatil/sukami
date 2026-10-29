@@ -169,6 +169,23 @@ Client Request (OpenAI-compatible)
 
 ---
 
+## Security & Cloud Deployment
+
+Sukami runs in **Local Developer Mode** by default with zero configuration. For public cloud or remote server deployments, set `SUKAMI_API_KEY`:
+
+```bash
+# Run in Cloud Security Mode
+export SUKAMI_API_KEY="your-secure-master-key"
+./sukami
+```
+
+When enabled:
+- Incoming requests require `Authorization: Bearer <key>` or `X-Sukami-Master-Key`.
+- Unauthenticated requests are rejected with `401 Unauthorized` before cache access (zero cache leakage).
+- Tenant key management endpoints (`/api/keys`) are protected behind the master key.
+
+---
+
 ## Testing & Verification
 
 ```bash
