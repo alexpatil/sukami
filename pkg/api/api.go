@@ -13,7 +13,7 @@ import (
 )
 
 // Version represents the release version of the Sukami gateway.
-var Version = "v0.2.0"
+var Version = "v0.3.0"
 
 // API represents the HTTP API surface and routing engine.
 type API struct {
