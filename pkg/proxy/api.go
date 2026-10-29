@@ -2,21 +2,70 @@ package proxy
 
 import (
 	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
+	"strings"
 )
 
-// HandleModels returns standard OpenAI-compatible models list.
+// HandleModels transparently forwards the /v1/models query to the upstream provider.
 func (h *Handler) HandleModels(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]any{
-		"object": "list",
-		"data": []map[string]any{
-			{"id": "gpt-4o", "object": "model", "owned_by": "openai"},
-			{"id": "gpt-4o-mini", "object": "model", "owned_by": "openai"},
-			{"id": "gpt-4-turbo", "object": "model", "owned_by": "openai"},
-			{"id": "claude-3-5-sonnet", "object": "model", "owned_by": "anthropic"},
-			{"id": "gemini-1.5-flash", "object": "model", "owned_by": "google"},
-		},
-	})
+	authorized, _ := h.validateGatewayAuth(r)
+	if !authorized {
+		writeError(w, http.StatusUnauthorized, "Unauthorized: Invalid or missing gateway API key")
+		return
+	}
+
+	authHeader := h.resolveUpstreamAuth(r)
+	if authHeader == "" {
+		writeError(w, http.StatusUnauthorized, "Missing upstream authorization: pass Authorization: Bearer <key> or set UPSTREAM_API_KEY")
+		return
+	}
+
+	targetBase := h.upstreamURL
+	if custom := r.Header.Get("X-Upstream-Url"); custom != "" {
+		targetBase = custom
+	} else if custom := r.Header.Get("X-Base-Url"); custom != "" {
+		targetBase = custom
+	} else if providerID := strings.ToLower(strings.TrimSpace(r.Header.Get("X-Provider"))); providerID != "" {
+		if p, ok := knownProviders[providerID]; ok {
+			targetBase = p.BaseURL
+		}
+	}
+
+	trimmed := strings.TrimRight(strings.TrimSpace(targetBase), "/")
+	trimmed = strings.TrimSuffix(trimmed, "/chat/completions")
+	var targetURL string
+	if strings.HasSuffix(trimmed, "/v1") {
+		targetURL = trimmed + "/models"
+	} else {
+		targetURL = trimmed + "/v1/models"
+	}
+
+	upReq, err := http.NewRequestWithContext(r.Context(), http.MethodGet, targetURL, nil)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "Failed to create upstream models request")
+		return
+	}
+	upReq.Header.Set("Authorization", authHeader)
+	upReq.Header.Set("Accept", "application/json")
+
+	resp, err := h.httpClient.Do(upReq)
+	if err != nil {
+		writeError(w, http.StatusBadGateway, fmt.Sprintf("Upstream call error: %v", err))
+		return
+	}
+	defer resp.Body.Close()
+
+	for k, vv := range resp.Header {
+		if !strings.EqualFold(k, "Content-Length") {
+			for _, v := range vv {
+				w.Header().Add(k, v)
+			}
+		}
+	}
+	w.WriteHeader(resp.StatusCode)
+	_, _ = io.Copy(w, resp.Body)
 }
 
 // HandleMetrics returns operational metrics summary.

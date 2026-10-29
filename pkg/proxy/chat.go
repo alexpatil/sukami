@@ -6,7 +6,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"strings"
 	"sukami/pkg/cache"
 	"sukami/pkg/metrics"
 	"sukami/pkg/models"
@@ -77,12 +76,6 @@ func (h *Handler) HandleChatCompletions(w http.ResponseWriter, r *http.Request) 
 			w.Header().Set("X-Sukami-Route-Reason", reason)
 			chatReq.Model = routedModel
 		}
-	}
-
-	// Smart Model Router: Map generic model names to active provider equivalents
-	if strings.Contains(h.upstreamURL, "groq.com") && (chatReq.Model == "gpt-4o" || chatReq.Model == "gpt-4" || chatReq.Model == "") {
-		chatReq.Model = "llama-3.3-70b-versatile"
-		w.Header().Set("X-Sukami-Mapped-Model", "llama-3.3-70b-versatile")
 	}
 
 	// 3. Optimize input messages using model-specific token rules
