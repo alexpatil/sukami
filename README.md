@@ -33,6 +33,7 @@ Download the latest static binary for Linux, macOS, or Windows from [GitHub Rele
 ```bash
 git clone https://github.com/alexpatil/sukami.git
 cd sukami
+cp .env.example .env  # optional configuration
 go run ./cmd/sukami
 ```
 
@@ -148,12 +149,17 @@ Client Request (OpenAI-compatible)
         │
         ▼
 ┌─────────────────────────────┐
-│       Prompt Pruner         │  strips filler, preserves code & markdown
+│    Auth & Security Guard    │  Cloud Security Mode (SUKAMI_API_KEY) & Zero Cache Leak
 └────────────┬────────────────┘
              │
              ▼
 ┌─────────────────────────────┐
-│     Semantic Vector Cache   │  cosine similarity + collision guards
+│  Smart Router & Optimizer   │  <10µs classifier + filler pruner (preserves code & markdown)
+└────────────┬────────────────┘
+             │
+             ▼
+┌─────────────────────────────┐
+│    Semantic Vector Cache    │  cosine similarity + entity & opposites collision guards
 └────────────┬────────────────┘
              │ miss
              ▼

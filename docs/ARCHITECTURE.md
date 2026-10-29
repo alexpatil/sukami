@@ -13,50 +13,49 @@ Sukami is a high-performance, zero-dependency AI Token Optimization Gateway and 
          [ CORS & Middleware Guard ]
                       │
                       ▼
-   [ Optional Multi-Tenant Tenant Guard ] ───(Invalid Tenant Key)──► [ HTTP 401 Unauthorized ]
-   (Active ONLY if X-Sukami-Key is provided;
-    enforces per-tenant rate limits & isolation)
+   [ Gateway & Tenant Auth Guard ] ──────────(Unauthorized)────────► [ HTTP 401 Unauthorized ]
+   - Cloud Security Mode: checks SUKAMI_API_KEY
+   - Multi-tenant: validates X-Sukami-Key rate limits
+                      │ (Authorized / Local Dev Mode)
+                      ▼
+   [ Upstream Provider Key Validation ] ────(No Provider Key)──────► [ HTTP 401 Missing API Key ]
+   - Zero Cache Leak: verifies upstream key
+     before evaluating cache or routes
+                      │ (Valid Upstream Auth)
+                      ▼
+       [ Smart Prompt Complexity Router ]
+          Evaluates prompt in <10µs.
+          If low-complexity & opted-in:
+          Routes gpt-4o -> gpt-4o-mini (~94% cost savings)
                       │
                       ▼
-      [ Smart Prompt Complexity Router ]
-         Evaluates prompt in <10µs.
-         If low-complexity & opted-in:
-         Routes gpt-4o -> gpt-4o-mini (~94% cost savings)
+           [ Prompt Pruner Engine ]
+          Strips filler, collapses whitespace.
+          Unconditionally preserves code blocks & markdown.
                       │
                       ▼
-          [ Prompt Pruner Engine ]
-         Strips filler, collapses whitespace.
-         Unconditionally preserves code blocks & markdown.
-                      │
-                      ▼
-       [ Semantic Vector Cache Check ] ───(Hit > 0.85 Sim)─────► [ HTTP 200 Instant (<10ms) ]
+        [ Semantic Vector Cache Check ] ───(Hit > 0.85 Sim)────────► [ HTTP 200 Instant (<10ms) ]
                       │ (Miss)
                       ▼
-        [ Output Density Injection ]
-         If X-Sukami-Density: true,
-         injects anti-fluff directive into system prompt.
+         [ Output Density Injection ]
+          If X-Sukami-Density: true,
+          injects anti-fluff directive into system prompt.
                       │
                       ▼
-     [ Upstream Provider Key Resolution ] ────(No Key Found)───► [ HTTP 401 Missing API Key ]
-      Checks: 1. Authorization: Bearer <provider_key>
-              2. X-Upstream-Key
-              3. Server Env (OPENAI_API_KEY, GROQ_API_KEY, etc.)
-                      │ (Key Present)
-                      ▼
-        [ Multi-Provider Dynamic Router ]
-         Auto-routes by model/provider to:
-         OpenAI · Groq · DeepSeek · OpenRouter · Ollama
+         [ Multi-Provider Dynamic Router ]
+          Auto-routes by model/provider to:
+          OpenAI · Groq · DeepSeek · OpenRouter · Ollama
                       │
                       ▼
-     [ Upstream HTTP Forward / SSE Stream ]
+      [ Upstream HTTP Forward / SSE Stream ]
                       │
                       ▼
-      [ Metrics & Prometheus Exposition ]
-         Records ground-truth tokens, latency,
-         and live dynamic USD cost savings.
+       [ Metrics & Prometheus Exposition ]
+          Records ground-truth tokens, latency,
+          and live dynamic USD cost savings.
                       │
                       ▼
-        [ Response Returned to Client ]
+         [ Response Returned to Client ]
 ```
 
 > **Transparent Proxy & Cloud Security Mode:**
