@@ -1,6 +1,7 @@
 package gateway
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -73,4 +74,20 @@ func (gw *Gateway) Router() http.Handler {
 	})
 
 	return CorsMiddleware(mux)
+}
+
+// writeJSON writes a JSON response with status code.
+func writeJSON(w http.ResponseWriter, status int, data any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(data)
+}
+
+// writeError writes a standard JSON error message.
+func writeError(w http.ResponseWriter, status int, message string) {
+	writeJSON(w, status, map[string]any{
+		"error": map[string]string{
+			"message": message,
+		},
+	})
 }

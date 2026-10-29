@@ -145,3 +145,4 @@ func TestGateway_CorsHeaders(t *testing.T) {
 		t.Errorf("expected Access-Control-Allow-Origin: *")
 	}
 }
+

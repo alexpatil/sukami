@@ -6,22 +6,6 @@ import (
 	"strings"
 )
 
-// writeJSON writes a JSON response with status code.
-func writeJSON(w http.ResponseWriter, status int, data any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(data)
-}
-
-// writeError writes a standard JSON error message.
-func writeError(w http.ResponseWriter, status int, message string) {
-	writeJSON(w, status, map[string]any{
-		"error": map[string]string{
-			"message": message,
-		},
-	})
-}
-
 func (gw *Gateway) isMasterAuth(r *http.Request) bool {
 	if gw.masterKey == "" {
 		return true
@@ -37,17 +21,10 @@ func (gw *Gateway) isMasterAuth(r *http.Request) bool {
 	return strings.TrimPrefix(rawAuth, "Bearer ") == gw.masterKey
 }
 
-// HandleMetrics returns operational metrics summary.
-func (gw *Gateway) HandleMetrics(w http.ResponseWriter, r *http.Request) {
-	summary := gw.tracker.GetSummary()
-	writeJSON(w, http.StatusOK, summary)
-}
-
-// HandlePrometheusMetrics returns standard Prometheus exposition format text.
-func (gw *Gateway) HandlePrometheusMetrics(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte(gw.tracker.FormatPrometheus()))
+// CreateKeyRequest represents incoming payload for new tenant key.
+type CreateKeyRequest struct {
+	Name string `json:"name"`
+	Tier string `json:"tier"`
 }
 
 // HandleListKeys returns all registered tenant API keys.
@@ -58,12 +35,6 @@ func (gw *Gateway) HandleListKeys(w http.ResponseWriter, r *http.Request) {
 	}
 	keys := gw.authStore.ListKeys()
 	writeJSON(w, http.StatusOK, keys)
-}
-
-// CreateKeyRequest represents incoming payload for new tenant key.
-type CreateKeyRequest struct {
-	Name string `json:"name"`
-	Tier string `json:"tier"`
 }
 
 // HandleCreateKey provisions a new tenant API key.
