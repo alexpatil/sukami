@@ -44,14 +44,6 @@ func (h *Handler) validateGatewayAuth(r *http.Request) (bool, *auth.APIKey) {
 	return false, nil
 }
 
-// requireMasterAuth checks if caller is authorized for admin management endpoints (/api/keys).
-func (h *Handler) requireMasterAuth(r *http.Request) bool {
-	if h.gatewayKey == "" {
-		return true
-	}
-	return isMasterKeyMatch(r, h.gatewayKey)
-}
-
 func isMasterKeyMatch(r *http.Request, masterKey string) bool {
 	if masterKey == "" {
 		return false
@@ -100,10 +92,8 @@ func (h *Handler) resolveUpstreamAuth(r *http.Request) string {
 		return "Bearer " + cleanAuth
 	}
 
-	for _, envVar := range []string{"OPENAI_API_KEY", "GROQ_API_KEY", "ANTHROPIC_API_KEY", "DEEPSEEK_API_KEY", "GEMINI_API_KEY"} {
-		if val := os.Getenv(envVar); val != "" {
-			return "Bearer " + val
-		}
+	if val := os.Getenv("UPSTREAM_API_KEY"); val != "" {
+		return "Bearer " + val
 	}
 	return ""
 }
@@ -113,9 +103,5 @@ func scopedCacheModel(tenantKey, model string) string {
 	if tenantKey == "" {
 		return "pub|" + model
 	}
-	prefix := tenantKey
-	if len(prefix) > 16 {
-		prefix = prefix[:16]
-	}
-	return prefix + "|" + model
+	return tenantKey + "|" + model
 }

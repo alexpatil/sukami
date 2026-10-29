@@ -1,4 +1,4 @@
-﻿package proxy
+package proxy
 
 import (
 	"bytes"
@@ -13,6 +13,37 @@ import (
 	"time"
 )
 
+// resolveUpstreamTarget dynamically determines the target completions URL.
+// Priority:
+// 1. Explicit request header: X-Upstream-Url or X-Base-Url
+// 2. Server default upstreamURL
+func (h *Handler) resolveUpstreamTarget(r *http.Request) string {
+	if custom := r.Header.Get("X-Upstream-Url"); custom != "" {
+		return buildCompletionsURL(custom)
+	}
+	if custom := r.Header.Get("X-Base-Url"); custom != "" {
+		return buildCompletionsURL(custom)
+	}
+	if h.upstreamURL == "" {
+		return ""
+	}
+	return buildCompletionsURL(h.upstreamURL)
+}
+
+func buildCompletionsURL(base string) string {
+	trimmed := strings.TrimRight(strings.TrimSpace(base), "/")
+	if trimmed == "" {
+		return ""
+	}
+	if strings.HasSuffix(trimmed, "/chat/completions") {
+		return trimmed
+	}
+	if strings.HasSuffix(trimmed, "/v1") {
+		return trimmed + "/chat/completions"
+	}
+	return trimmed + "/v1/chat/completions"
+}
+
 func (h *Handler) forwardUpstream(
 	w http.ResponseWriter,
 	r *http.Request,
@@ -25,9 +56,13 @@ func (h *Handler) forwardUpstream(
 	authHeader string,
 	start time.Time,
 ) {
-	optimizedBody, _ := json.Marshal(chatReq)
-	targetURL := h.resolveUpstreamTarget(r, chatReq.Model)
+	targetURL := h.resolveUpstreamTarget(r)
+	if targetURL == "" {
+		writeError(w, http.StatusBadRequest, "No upstream URL configured: provide X-Upstream-Url header or configure UPSTREAM_URL")
+		return
+	}
 
+	optimizedBody, _ := json.Marshal(chatReq)
 	upReq, err := http.NewRequestWithContext(r.Context(), http.MethodPost, targetURL, bytes.NewReader(optimizedBody))
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "Failed to create upstream request")
@@ -36,10 +71,6 @@ func (h *Handler) forwardUpstream(
 
 	upReq.Header.Set("Content-Type", "application/json")
 	upReq.Header.Set("Authorization", authHeader)
-	if strings.Contains(targetURL, "openrouter.ai") {
-		upReq.Header.Set("HTTP-Referer", "https://sukami.ai")
-		upReq.Header.Set("X-Title", "Sukami AI Gateway")
-	}
 
 	resp, err := h.httpClient.Do(upReq)
 	if err != nil {
