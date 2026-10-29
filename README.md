@@ -163,18 +163,28 @@ For complete technical specifications, see [docs/ARCHITECTURE.md](docs/ARCHITECT
 
 ## Configuration
 
-Sukami is configured via environment variables or CLI flags (`.env` supported):
+Sukami is configured via environment variables, CLI flags, or a local `.env` file. Settings can also be toggled dynamically per-request using HTTP headers.
 
-| Variable | Flag | Default | Description |
-| :--- | :--- | :--- | :--- |
-| `PORT` | `-port`, `-p` | `8080` | Network port to listen on |
-| `UPSTREAM_URL` | `-upstream` | `https://api.openai.com/v1` | Default fallback upstream endpoint |
-| `SUKAMI_API_KEY` | — | *(empty)* | Master key. Enables Cloud Security Mode |
-| `ENABLE_SMART_ROUTING`| — | `false` | Enable automatic model complexity routing |
-| `ENABLE_OUTPUT_DENSITY`| — | `false` | Inject anti-fluff system prompt directive |
-| `OPENAI_API_KEY` | — | *(empty)* | Default OpenAI key if omitted from request headers |
-| `GROQ_API_KEY` | — | *(empty)* | Default Groq key for `llama-*` model requests |
-| `DEEPSEEK_API_KEY` | — | *(empty)* | Default DeepSeek key for `deepseek-*` requests |
+### Gateway & Optimization
+
+| Variable | CLI Flag | Request Header | Default | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `PORT` | `-port`, `-p` | — | `8080` | Port to listen on |
+| `UPSTREAM_URL` | `-upstream` | — | `https://api.openai.com/v1` | Default fallback completions endpoint |
+| `SUKAMI_API_KEY` | — | `Authorization: Bearer <key>`<br>`X-Sukami-Master-Key` | *(none)* | Master gateway key. Enables Cloud Security Mode |
+| `ENABLE_SMART_ROUTING` | — | `X-Sukami-Smart-Route: true` | `false` | Enables <10µs model complexity routing |
+| `ENABLE_OUTPUT_DENSITY` | — | `X-Sukami-Density: true` | `false` | Injects concise anti-fluff system prompt directive |
+
+### Upstream Provider Fallbacks
+
+Clients typically supply upstream provider credentials directly in the `Authorization: Bearer <key>` request header. If omitted, Sukami falls back to server-level environment keys:
+
+| Variable | Supported Models | Provider Endpoint |
+| :--- | :--- | :--- |
+| `OPENAI_API_KEY` | `gpt-4o`, `gpt-4o-mini`, `o1`, `o3-mini`, `text-embedding-3-*` | `https://api.openai.com/v1` |
+| `GROQ_API_KEY` | `llama-3.3-70b-versatile`, `llama-3.1-8b-instant`, `mixtral-8x7b-32768` | `https://api.groq.com/openai/v1` |
+| `DEEPSEEK_API_KEY` | `deepseek-chat`, `deepseek-reasoner` | `https://api.deepseek.com/v1` |
+| `OPENROUTER_API_KEY` | `anthropic/*`, `google/*`, `meta-llama/*` | `https://openrouter.ai/api/v1` |
 
 Copy `.env.example` to get started:
 
