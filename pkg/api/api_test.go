@@ -1,4 +1,4 @@
-package server_test
+package api_test
 
 import (
 	"bytes"
@@ -9,27 +9,27 @@ import (
 	"testing"
 	"time"
 
+	"sukami/pkg/api"
 	"sukami/pkg/auth"
 	"sukami/pkg/cache"
 	"sukami/pkg/metrics"
 	"sukami/pkg/proxy"
-	"sukami/pkg/server"
 )
 
-func setupTestServer(masterKey string) (*server.Server, *auth.MemoryKeyStore, *metrics.Tracker) {
+func setupTestAPI(masterKey string) (*api.API, *auth.MemoryKeyStore, *metrics.Tracker) {
 	memCache := cache.NewMemoryCache(10 * time.Minute)
 	tracker := metrics.NewTracker(10)
 	keyStore := auth.NewMemoryKeyStore()
 	limiter := auth.NewRateLimiter()
 	proxyHandler := proxy.NewHandler(memCache, tracker, keyStore, limiter, "http://localhost:8080")
 
-	srv := server.New(proxyHandler, tracker, keyStore, masterKey)
-	return srv, keyStore, tracker
+	app := api.New(proxyHandler, tracker, keyStore, masterKey)
+	return app, keyStore, tracker
 }
 
-func TestServer_HealthAndRoot(t *testing.T) {
-	srv, _, _ := setupTestServer("")
-	router := srv.Router()
+func TestAPI_HealthAndRoot(t *testing.T) {
+	app, _, _ := setupTestAPI("")
+	router := app.Router()
 
 	// Test GET /health
 	reqHealth := httptest.NewRequest(http.MethodGet, "/health", nil)
@@ -56,15 +56,15 @@ func TestServer_HealthAndRoot(t *testing.T) {
 	}
 }
 
-func TestServer_MetricsEndpoints(t *testing.T) {
-	srv, _, tracker := setupTestServer("")
+func TestAPI_MetricsEndpoints(t *testing.T) {
+	app, _, tracker := setupTestAPI("")
 	tracker.RecordRequest(metrics.RequestRecord{
 		OriginalTokens: 10,
 		SavedTokens:    5,
 		CostSavedUSD:   0.001,
 		CacheHit:       false,
 	})
-	router := srv.Router()
+	router := app.Router()
 
 	// Test /metrics (Prometheus format)
 	reqProm := httptest.NewRequest(http.MethodGet, "/metrics", nil)
@@ -91,10 +91,10 @@ func TestServer_MetricsEndpoints(t *testing.T) {
 	}
 }
 
-func TestServer_KeysLifecycle(t *testing.T) {
+func TestAPI_KeysLifecycle(t *testing.T) {
 	masterKey := "super-secret-master-key"
-	srv, _, _ := setupTestServer(masterKey)
-	router := srv.Router()
+	app, _, _ := setupTestAPI(masterKey)
+	router := app.Router()
 
 	// 1. Unauthorized create
 	createBody := `{"name":"test-tenant","tier":"pro"}`
@@ -145,9 +145,9 @@ func TestServer_KeysLifecycle(t *testing.T) {
 	}
 }
 
-func TestServer_CorsHeaders(t *testing.T) {
-	srv, _, _ := setupTestServer("")
-	router := srv.Router()
+func TestAPI_CorsHeaders(t *testing.T) {
+	app, _, _ := setupTestAPI("")
+	router := app.Router()
 
 	req := httptest.NewRequest(http.MethodOptions, "/v1/chat/completions", nil)
 	rec := httptest.NewRecorder()

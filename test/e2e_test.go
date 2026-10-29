@@ -7,11 +7,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sukami/pkg/api"
 	"sukami/pkg/auth"
 	"sukami/pkg/cache"
 	"sukami/pkg/metrics"
 	"sukami/pkg/proxy"
-	"sukami/pkg/server"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -63,14 +63,14 @@ func setupE2EEnvironment(t *testing.T) (upstreamServer *httptest.Server, sukamiS
 		http.NotFound(w, r)
 	}))
 
-	// 2. Sukami Core Server
+	// 2. Sukami Core HTTP API Service
 	memCache := cache.NewMemoryCache(1 * time.Hour)
 	tracker := metrics.NewTracker(50)
 	keyStore := auth.NewMemoryKeyStore()
 	limiter := auth.NewRateLimiter()
 	proxyHandler := proxy.NewHandler(memCache, tracker, keyStore, limiter, upstreamServer.URL)
-	srv := server.New(proxyHandler, tracker, keyStore, "")
-	sukamiServer = httptest.NewServer(srv.Router())
+	apiServer := api.New(proxyHandler, tracker, keyStore, "")
+	sukamiServer = httptest.NewServer(apiServer.Router())
 
 	return upstreamServer, sukamiServer, &callCount
 }

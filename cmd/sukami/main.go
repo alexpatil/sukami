@@ -10,12 +10,12 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sukami/pkg/api"
 	"sukami/pkg/auth"
 	"sukami/pkg/cache"
 	"sukami/pkg/config"
 	"sukami/pkg/metrics"
 	"sukami/pkg/proxy"
-	"sukami/pkg/server"
 	"syscall"
 	"time"
 )
@@ -84,12 +84,12 @@ func main() {
 		}
 	}()
 
-	// 3. Initialize HTTP Server
-	srv := server.New(proxyHandler, tracker, authStore, masterKey)
+	// 3. Initialize HTTP API Service
+	apiServer := api.New(proxyHandler, tracker, authStore, masterKey)
 
 	httpServer := &http.Server{
 		Addr:              ":" + port,
-		Handler:           srv.Router(),
+		Handler:           apiServer.Router(),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       30 * time.Second,
 		WriteTimeout:      120 * time.Second,

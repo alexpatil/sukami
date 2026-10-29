@@ -1,4 +1,4 @@
-package server
+package api
 
 import (
 	"encoding/json"
@@ -12,17 +12,17 @@ import (
 	"sukami/pkg/proxy"
 )
 
-// Server represents the HTTP entrypoint and routing engine.
-type Server struct {
+// API represents the HTTP API surface and routing engine.
+type API struct {
 	proxyHandler *proxy.Handler
 	tracker      *metrics.Tracker
 	authStore    auth.KeyStore
 	masterKey    string
 }
 
-// New constructs an operational server instance.
-func New(proxyHandler *proxy.Handler, tracker *metrics.Tracker, authStore auth.KeyStore, masterKey string) *Server {
-	return &Server{
+// New constructs an operational API router instance.
+func New(proxyHandler *proxy.Handler, tracker *metrics.Tracker, authStore auth.KeyStore, masterKey string) *API {
+	return &API{
 		proxyHandler: proxyHandler,
 		tracker:      tracker,
 		authStore:    authStore,
@@ -45,20 +45,20 @@ func CorsMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// Router builds and returns the complete HTTP request multiplexer for the server.
-func (s *Server) Router() http.Handler {
+// Router builds and returns the complete HTTP request multiplexer for the API.
+func (a *API) Router() http.Handler {
 	mux := http.NewServeMux()
 
 	// OpenAI-compatible Proxy Data Plane
-	mux.HandleFunc("POST /v1/chat/completions", s.proxyHandler.HandleChatCompletions)
-	mux.HandleFunc("GET /v1/models", s.proxyHandler.HandleModels)
+	mux.HandleFunc("POST /v1/chat/completions", a.proxyHandler.HandleChatCompletions)
+	mux.HandleFunc("GET /v1/models", a.proxyHandler.HandleModels)
 
 	// Observability & Metrics
-	mux.HandleFunc("GET /metrics", s.HandlePrometheusMetrics)
-	mux.HandleFunc("GET /api/metrics", s.HandleMetrics)
-	mux.HandleFunc("GET /api/keys", s.HandleListKeys)
-	mux.HandleFunc("POST /api/keys", s.HandleCreateKey)
-	mux.HandleFunc("DELETE /api/keys", s.HandleDeleteKey)
+	mux.HandleFunc("GET /metrics", a.HandlePrometheusMetrics)
+	mux.HandleFunc("GET /api/metrics", a.HandleMetrics)
+	mux.HandleFunc("GET /api/keys", a.HandleListKeys)
+	mux.HandleFunc("POST /api/keys", a.HandleCreateKey)
+	mux.HandleFunc("DELETE /api/keys", a.HandleDeleteKey)
 
 	// System Health & Service Descriptor
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
@@ -78,31 +78,31 @@ func (s *Server) Router() http.Handler {
 }
 
 // HandleMetrics returns operational metrics summary.
-func (s *Server) HandleMetrics(w http.ResponseWriter, r *http.Request) {
-	summary := s.tracker.GetSummary()
+func (a *API) HandleMetrics(w http.ResponseWriter, r *http.Request) {
+	summary := a.tracker.GetSummary()
 	writeJSON(w, http.StatusOK, summary)
 }
 
 // HandlePrometheusMetrics returns standard Prometheus exposition format text.
-func (s *Server) HandlePrometheusMetrics(w http.ResponseWriter, r *http.Request) {
+func (a *API) HandlePrometheusMetrics(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte(s.tracker.FormatPrometheus()))
+	_, _ = w.Write([]byte(a.tracker.FormatPrometheus()))
 }
 
-func (s *Server) isMasterAuth(r *http.Request) bool {
-	if s.masterKey == "" {
+func (a *API) isMasterAuth(r *http.Request) bool {
+	if a.masterKey == "" {
 		return true
 	}
 	for _, header := range []string{"X-Sukami-Master-Key", "X-Sukami-Key"} {
 		if val := strings.TrimSpace(r.Header.Get(header)); val != "" {
-			if strings.TrimPrefix(val, "Bearer ") == s.masterKey {
+			if strings.TrimPrefix(val, "Bearer ") == a.masterKey {
 				return true
 			}
 		}
 	}
 	rawAuth := strings.TrimSpace(r.Header.Get("Authorization"))
-	return strings.TrimPrefix(rawAuth, "Bearer ") == s.masterKey
+	return strings.TrimPrefix(rawAuth, "Bearer ") == a.masterKey
 }
 
 // CreateKeyRequest represents incoming payload for new tenant key.
@@ -112,18 +112,18 @@ type CreateKeyRequest struct {
 }
 
 // HandleListKeys returns all registered tenant API keys.
-func (s *Server) HandleListKeys(w http.ResponseWriter, r *http.Request) {
-	if !s.isMasterAuth(r) {
+func (a *API) HandleListKeys(w http.ResponseWriter, r *http.Request) {
+	if !a.isMasterAuth(r) {
 		writeError(w, http.StatusUnauthorized, "Unauthorized: Master API key required")
 		return
 	}
-	keys := s.authStore.ListKeys()
+	keys := a.authStore.ListKeys()
 	writeJSON(w, http.StatusOK, keys)
 }
 
 // HandleCreateKey provisions a new tenant API key.
-func (s *Server) HandleCreateKey(w http.ResponseWriter, r *http.Request) {
-	if !s.isMasterAuth(r) {
+func (a *API) HandleCreateKey(w http.ResponseWriter, r *http.Request) {
+	if !a.isMasterAuth(r) {
 		writeError(w, http.StatusUnauthorized, "Unauthorized: Master API key required")
 		return
 	}
@@ -133,7 +133,7 @@ func (s *Server) HandleCreateKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	key, err := s.authStore.CreateKey(req.Name, req.Tier)
+	key, err := a.authStore.CreateKey(req.Name, req.Tier)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
@@ -143,8 +143,8 @@ func (s *Server) HandleCreateKey(w http.ResponseWriter, r *http.Request) {
 }
 
 // HandleDeleteKey revokes an API key.
-func (s *Server) HandleDeleteKey(w http.ResponseWriter, r *http.Request) {
-	if !s.isMasterAuth(r) {
+func (a *API) HandleDeleteKey(w http.ResponseWriter, r *http.Request) {
+	if !a.isMasterAuth(r) {
 		writeError(w, http.StatusUnauthorized, "Unauthorized: Master API key required")
 		return
 	}
@@ -154,7 +154,7 @@ func (s *Server) HandleDeleteKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	revoked := s.authStore.RevokeKey(key)
+	revoked := a.authStore.RevokeKey(key)
 	writeJSON(w, http.StatusOK, map[string]any{"revoked": revoked})
 }
 
