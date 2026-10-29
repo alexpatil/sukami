@@ -171,18 +171,15 @@ cp .env.example .env
 PORT=8080                               # Port to listen on (flag: -p, -port)
 UPSTREAM_URL=https://api.openai.com/v1  # Fallback upstream endpoint (flag: -upstream)
 
-# Cloud Security Mode
+# Cloud Security Mode (optional)
 SUKAMI_API_KEY=                         # Master gateway key. Rejects unauthenticated callers before cache
 
 # Dynamic Optimization (can also be toggled per-request via headers)
 ENABLE_SMART_ROUTING=false              # Route simple queries to economy models (header: X-Sukami-Smart-Route: true)
 ENABLE_OUTPUT_DENSITY=false             # Inject anti-fluff instructions into prompts (header: X-Sukami-Density: true)
 
-# Provider Fallbacks (optional: used if client omits Authorization header)
-OPENAI_API_KEY=                         # OpenAI (gpt-4o, gpt-4o-mini, o3-mini)
-GROQ_API_KEY=                           # Groq (llama-3.3-70b, llama-3.1-8b)
-DEEPSEEK_API_KEY=                       # DeepSeek (deepseek-chat, deepseek-reasoner)
-OPENROUTER_API_KEY=                     # OpenRouter (anthropic, google, meta)
+# Upstream Fallback (optional: clients typically pass keys via Authorization header)
+UPSTREAM_API_KEY=                       # Default upstream API key fallback
 ```
 
 ---
@@ -200,7 +197,8 @@ Workload: technical comparison (PostgreSQL vs. MongoDB).
 To reproduce against upstream providers:
 
 ```bash
-export OPENAI_API_KEY="sk-..."
+# Set your upstream key (in .env or terminal)
+export UPSTREAM_API_KEY="your-api-key"
 go run ./cmd/sukami-bench
 ```
 
