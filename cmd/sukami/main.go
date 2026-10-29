@@ -104,27 +104,24 @@ func main() {
 	mux.HandleFunc("GET /v1/models", proxyHandler.HandleModels)
 	mux.HandleFunc("POST /api/models/fetch", proxyHandler.HandleFetchProviderModels)
 
-	// SaaS Operations & Playground API
+	// Observability & Multi-Tenant Keys
 	mux.HandleFunc("GET /metrics", proxyHandler.HandlePrometheusMetrics)
 	mux.HandleFunc("GET /api/metrics", proxyHandler.HandleMetrics)
-	mux.HandleFunc("POST /api/playground", proxyHandler.HandlePlayground)
 	mux.HandleFunc("GET /api/keys", proxyHandler.HandleListKeys)
 	mux.HandleFunc("POST /api/keys", proxyHandler.HandleCreateKey)
 	mux.HandleFunc("DELETE /api/keys", proxyHandler.HandleDeleteKey)
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintf(w, `{"status":"ok","timestamp":"%s"}`, time.Now().UTC().Format(time.RFC3339))
+		fmt.Fprintf(w, `{"status":"ok","timestamp":"%s"}`+"\n", time.Now().UTC().Format(time.RFC3339))
 	})
-
-	// Developer Status Dashboard static files from ./web
-	fs := http.FileServer(http.Dir("./web"))
-	mux.Handle("GET /", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasPrefix(r.URL.Path, "/v1/") || strings.HasPrefix(r.URL.Path, "/api/") {
+	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/" {
 			http.NotFound(w, r)
 			return
 		}
-		fs.ServeHTTP(w, r)
-	}))
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, `{"service":"sukami","version":"v0.1.0","status":"healthy","docs":"https://github.com/alexpatil/sukami"}`+"\n")
+	})
 
 	server := &http.Server{
 		Addr:              ":" + port,
@@ -143,7 +140,6 @@ func main() {
 		slog.Info("🚀 Sukami AI Token Optimizer Proxy started",
 			"port", port,
 			"upstream", upstreamURL,
-			"dashboard", "http://localhost:"+port,
 		)
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			slog.Error("Server failed to start", "err", err)

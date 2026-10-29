@@ -59,7 +59,7 @@ Sukami is a high-performance, zero-dependency AI Token Optimization Gateway and 
 ```
 
 > **Transparent Proxy & Cloud Security Mode:**
-> - **Local Developer Mode (Default):** Zero authentication friction. Point apps to `http://localhost:8080/v1` using standard upstream provider credentials (`Authorization: Bearer $OPENAI_API_KEY`).
+> - **Local Developer Mode (Default):** Zero authentication friction. Point apps to `http://localhost:8080/v1` using standard upstream provider credentials (`Authorization: Bearer $UPSTREAM_API_KEY`).
 > - **Cloud Security Mode (`SUKAMI_API_KEY`):** When deployed on remote cloud servers or public networks, set `SUKAMI_API_KEY=your-secret` to lock down the gateway. All requests require `X-Sukami-Master-Key` or valid tenant keys, and unauthenticated callers are rejected with `401 Unauthorized` before accessing cache or upstream providers (Zero Cache Leak guarantee). Multi-tenant keys (`X-Sukami-Key`) provide segregated metrics and rate limits.
 
 ---
@@ -74,8 +74,7 @@ Sukami is a high-performance, zero-dependency AI Token Optimization Gateway and 
 | `pkg/metrics` | Real-time Prometheus metrics exporter (`/metrics`), live dynamic pricing sync, request recorder | Lock-free / mutex-protected ring buffer (sliding window of recent requests) |
 | `pkg/models` | OpenAI-compatible request, response, and SSE stream data types | Standard Go structs with JSON tags |
 | `pkg/optimizer` | Input prompt pruning, output density directives, sub-10µs prompt complexity classifier, token estimation | Pure Go string scanners, compiled regexes, zero-allocation lexing |
-| `pkg/proxy` | OpenAI-compatible reverse proxy endpoints (`/v1/chat/completions`, `/v1/models`, `/metrics`, `/health`, Playground) | Modern Go `http.ServeMux` with SSE streaming and upstream connection pooling |
-| `web` | Single-page developer status dashboard & playground | Native HTML5, modern CSS3, and Vanilla JavaScript (zero node/npm dependencies) |
+| `pkg/proxy` | OpenAI-compatible reverse proxy endpoints (`/v1/chat/completions`, `/v1/models`, `/metrics`, `/health`, Root JSON descriptor) | Modern Go `http.ServeMux` with SSE streaming and upstream connection pooling |
 
 ---
 

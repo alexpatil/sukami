@@ -53,7 +53,7 @@ go run ./cmd/sukami
 docker compose up -d
 ```
 
-The gateway and developer dashboard start at `http://localhost:8080`.
+The gateway starts at `http://localhost:8080`.
 
 ---
 
@@ -153,7 +153,7 @@ For complete technical specifications, see [docs/ARCHITECTURE.md](docs/ARCHITECT
 - **Smart Model Routing (Opt-in)** — Evaluates prompt complexity in <10µs without external API calls. Transparently routes simple queries from `gpt-4o` to `gpt-4o-mini` while preserving flagship models for complex code and multi-step reasoning.
 - **Cloud Security Mode** — Set `SUKAMI_API_KEY` to lock down the proxy on public servers. Rejects unauthenticated callers before cache access (Zero Cache Leak guarantee).
 - **Multi-Tenant Keys** — Create tenant keys with dedicated rate limits and usage tracking via `/api/keys`.
-- **Developer Dashboard** — Embedded single-page dashboard and live testing sandbox accessible at `http://localhost:8080`.
+- **Headless Infrastructure** — 100% headless proxy with zero frontend dependencies; instantaneous JSON service status at `GET /` and Prometheus metrics at `GET /metrics`.
 - **Prometheus Metrics** — Exports standard Prometheus 0.0.4 metrics at `GET /metrics`.
 
 ---
