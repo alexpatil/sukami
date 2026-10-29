@@ -163,33 +163,29 @@ For complete technical specifications, see [docs/ARCHITECTURE.md](docs/ARCHITECT
 
 ## Configuration
 
-Sukami is configured via environment variables, CLI flags, or a local `.env` file. Settings can also be toggled dynamically per-request using HTTP headers.
-
-### Gateway & Optimization
-
-| Variable | CLI Flag | Request Header | Default | Description |
-| :--- | :--- | :--- | :--- | :--- |
-| `PORT` | `-port`, `-p` | — | `8080` | Port to listen on |
-| `UPSTREAM_URL` | `-upstream` | — | `https://api.openai.com/v1` | Default fallback completions endpoint |
-| `SUKAMI_API_KEY` | — | `Authorization: Bearer <key>`<br>`X-Sukami-Master-Key` | *(none)* | Master gateway key. Enables Cloud Security Mode |
-| `ENABLE_SMART_ROUTING` | — | `X-Sukami-Smart-Route: true` | `false` | Enables <10µs model complexity routing |
-| `ENABLE_OUTPUT_DENSITY` | — | `X-Sukami-Density: true` | `false` | Injects concise anti-fluff system prompt directive |
-
-### Upstream Provider Fallbacks
-
-Clients typically supply upstream provider credentials directly in the `Authorization: Bearer <key>` request header. If omitted, Sukami falls back to server-level environment keys:
-
-| Variable | Supported Models | Provider Endpoint |
-| :--- | :--- | :--- |
-| `OPENAI_API_KEY` | `gpt-4o`, `gpt-4o-mini`, `o1`, `o3-mini`, `text-embedding-3-*` | `https://api.openai.com/v1` |
-| `GROQ_API_KEY` | `llama-3.3-70b-versatile`, `llama-3.1-8b-instant`, `mixtral-8x7b-32768` | `https://api.groq.com/openai/v1` |
-| `DEEPSEEK_API_KEY` | `deepseek-chat`, `deepseek-reasoner` | `https://api.deepseek.com/v1` |
-| `OPENROUTER_API_KEY` | `anthropic/*`, `google/*`, `meta-llama/*` | `https://openrouter.ai/api/v1` |
-
-Copy `.env.example` to get started:
+Sukami is configured via environment variables, CLI flags, or a local `.env` file. Copy the example template to get started:
 
 ```bash
 cp .env.example .env
+```
+
+```ini
+# Network & Proxy
+PORT=8080                               # Port to listen on (flag: -p, -port)
+UPSTREAM_URL=https://api.openai.com/v1  # Fallback upstream endpoint (flag: -upstream)
+
+# Cloud Security Mode
+SUKAMI_API_KEY=                         # Master gateway key. Rejects unauthenticated callers before cache
+
+# Dynamic Optimization (can also be toggled per-request via headers)
+ENABLE_SMART_ROUTING=false              # Route simple queries to economy models (header: X-Sukami-Smart-Route: true)
+ENABLE_OUTPUT_DENSITY=false             # Inject anti-fluff instructions into prompts (header: X-Sukami-Density: true)
+
+# Provider Fallbacks (optional: used if client omits Authorization header)
+OPENAI_API_KEY=                         # OpenAI (gpt-4o, gpt-4o-mini, o3-mini)
+GROQ_API_KEY=                           # Groq (llama-3.3-70b, llama-3.1-8b)
+DEEPSEEK_API_KEY=                       # DeepSeek (deepseek-chat, deepseek-reasoner)
+OPENROUTER_API_KEY=                     # OpenRouter (anthropic, google, meta)
 ```
 
 ---
