@@ -1,4 +1,4 @@
-﻿# Sukami Real-World Performance & Optimization Benchmarks
+# Sukami Real-World Performance & Optimization Benchmarks
 
 This document details empirical benchmark results measuring Sukami's token optimization, semantic caching latency, and cost reduction across upstream LLM providers.
 
@@ -15,7 +15,7 @@ This document details empirical benchmark results measuring Sukami's token optim
 **Net Impact:**
 - **38.6% Faster Response Time** (due to reduced token generation volume).
 - **35.6% Fewer Billed Tokens** (clean, high-density output without conversational preambles or fluff).
-- **Sub-10ms Cache Latency** for semantically identical or near-identical queries.
+- **Instant Cache Responses** for semantically identical or near-identical queries.
 
 ---
 
@@ -27,7 +27,7 @@ Sukami applies optimization across four orthogonal layers:
                   Input Optimization                      Output & Routing
    ┌──────────────────────────────────────────────┐  ┌───────────────────────────────┐
    │ 1. Transparent Prompt Pruning (20–35% input) │  │ 3. Output Density (30–35% out)│
-   │ 2. Sub-10ms Semantic Cache (100% savings)    │  │ 4. Smart Model Route (80–95%) │
+   │ 2. Fast Semantic Cache (100% savings)        │  │ 4. Smart Model Route (80–95%) │
    └──────────────────────────────────────────────┘  └───────────────────────────────┘
 ```
 
@@ -36,7 +36,7 @@ Sukami applies optimization across four orthogonal layers:
 - Unconditionally preserves markdown code blocks (`` `...` ``, ```` ```...``` ````) and structural indentation.
 - **Observed Input Token Savings:** **20% to 35%**.
 
-### Pillar 2: Sub-10ms Semantic Vector Cache
+### Pillar 2: Semantic Vector Cache
 - Fast-path in-memory cosine similarity matching (>0.85 threshold).
 - Protected by **Entity Collision Guard** (distinguishes Docker from Kubernetes) and **Opposites Conflict Guard** (distinguishes `encrypt` from `decrypt`).
 - **Observed Hit Latency:** **< 10ms** with 0 upstream API tokens billed.
@@ -47,7 +47,7 @@ Sukami applies optimization across four orthogonal layers:
 - **Observed Output Token Savings:** **30% to 35%**.
 
 ### Pillar 4: Prompt Complexity Smart Model Routing
-- In-process lexical and syntactic classifier evaluates queries in `<10µs`.
+- In-process lexical and syntactic classifier evaluates queries without network overhead.
 - When enabled (`X-Sukami-Smart-Route: true`), transparently routes simple factual, conversational, and translation queries from expensive flagship models (`gpt-4o`, `claude-3.5-sonnet`) to high-speed economy equivalents (`gpt-4o-mini`, `claude-3.5-haiku`).
 - **Observed Cost Savings:** **80% to 95%** on routed queries.
 
@@ -72,8 +72,8 @@ Projected savings calculated against OpenAI `gpt-4o` baseline ($2.50 / 1M input 
 The benchmark runner is built into the repository using standard Go:
 
 ```bash
-# Set your API key in .env or environment variable
-export GROQ_API_KEY="gsk_..."   # or OPENAI_API_KEY="sk-..."
+# Set your upstream key in .env or environment variable
+export UPSTREAM_API_KEY="your-api-key"
 
 # Run the benchmark
 go run ./cmd/sukami-bench

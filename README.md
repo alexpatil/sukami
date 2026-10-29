@@ -16,12 +16,12 @@
 
 ---
 
-Sukami sits between your application and upstream LLM providers (OpenAI, Groq, DeepSeek, OpenRouter, Ollama). It prunes conversational filler from prompts, serves repeated queries from an in-memory vector cache in under 10ms, and exports Prometheus metrics—without changing your application logic.
+Sukami is a reverse proxy that sits between your applications and upstream LLM providers. It prunes conversational filler from prompts, serves repeated queries from an in-memory semantic cache, and exports standard Prometheus metrics—with zero changes to your application logic.
 
-- **Zero dependencies** — Built exclusively with the Go standard library, single static binary (~10MB).
+- **Zero dependencies** — Built exclusively with the Go standard library, packaged as a single static binary.
 - **Drop-in integration** — Works with official OpenAI SDKs by changing only the `base_url`.
-- **In-memory cache** — Cosine vector similarity with entity and opposites collision guards.
-- **Fast execution** — Pruning runs in <50µs; routing decisions in <10µs; cache hits in <10ms.
+- **In-memory cache** — Cosine vector similarity with semantic collision guards.
+- **Low latency** — Sub-millisecond in-process overhead and fast cache retrieval.
 
 ---
 
@@ -107,7 +107,7 @@ curl http://localhost:8080/v1/chat/completions \
   }'
 ```
 
-The response is a standard OpenAI JSON object with zero wrapper fields.
+Responses are standard OpenAI JSON objects with an added `X-Cache` header (`HIT` or `MISS`).
 
 ---
 
@@ -118,12 +118,12 @@ Client Request (OpenAI SDK / cURL)
         │
         ▼
 ┌─────────────────────────────┐
-│    Auth & Security Guard    │  Cloud Security Mode (SUKAMI_API_KEY) & Zero Cache Leak
+│    Auth & Security Guard    │  Validates gateway key and rejects unauthorized access before cache
 └────────────┬────────────────┘
              │
              ▼
 ┌─────────────────────────────┐
-│  Smart Router & Optimizer   │  <10µs classifier + filler pruner (preserves code & markdown)
+│  Smart Router & Optimizer   │  Prompt pruner (preserves code & markdown) + optional complexity router
 └────────────┬────────────────┘
              │
              ▼
@@ -133,12 +133,12 @@ Client Request (OpenAI SDK / cURL)
              │ miss
              ▼
 ┌─────────────────────────────┐
-│    Multi-Provider Router    │  OpenAI · Groq · DeepSeek · OpenRouter · Ollama
+│  Transparent Reverse Proxy  │  Forwards to UPSTREAM_URL or request X-Upstream-Url header
 └────────────┬────────────────┘
              │
              ▼
 ┌─────────────────────────────┐
-│   Prometheus Metrics Layer  │  Tokens · latency · live dynamic USD savings
+│   Prometheus Metrics Layer  │  Tokens, latency, and live dynamic cost savings
 └─────────────────────────────┘
 ```
 
@@ -148,19 +148,19 @@ For complete technical specifications, see [docs/ARCHITECTURE.md](docs/ARCHITECT
 
 ## Features
 
-- **Prompt Pruning** — Strips conversational filler ("Please kindly explain...") and redundant whitespace. Code blocks and markdown indentation are unconditionally preserved.
-- **In-Memory Semantic Cache** — Caches responses with cosine similarity matching (>0.85). Built-in entity and opposites guards prevent false positives between distinct concepts (e.g. `Docker` vs `Kubernetes`, `encrypt` vs `decrypt`).
-- **Smart Model Routing (Opt-in)** — Evaluates prompt complexity in <10µs without external API calls. Transparently routes simple queries from `gpt-4o` to `gpt-4o-mini` while preserving flagship models for complex code and multi-step reasoning.
-- **Cloud Security Mode** — Set `SUKAMI_API_KEY` to lock down the proxy on public servers. Rejects unauthenticated callers before cache access (Zero Cache Leak guarantee).
+- **Prompt Pruning** — Strips conversational filler and redundant whitespace. Code blocks and markdown indentation are unconditionally preserved.
+- **In-Memory Semantic Cache** — Caches responses using vector similarity matching (>0.85). Built-in entity and opposites guards prevent false matches between distinct concepts (such as `Docker` vs `Kubernetes` or `encrypt` vs `decrypt`).
+- **Smart Model Routing (Opt-in)** — Evaluates prompt complexity in-process without external API calls. Routes simple queries to economy models while preserving flagship models for complex code and multi-step reasoning.
+- **Cloud Security Mode** — Set `SUKAMI_API_KEY` to protect the proxy on public networks. Rejects unauthenticated callers before cache access to prevent unauthorized cache inspection.
 - **Multi-Tenant Keys** — Create tenant keys with dedicated rate limits and usage tracking via `/api/keys`.
-- **Headless Infrastructure** — 100% headless proxy with zero frontend dependencies; instantaneous JSON service status at `GET /` and Prometheus metrics at `GET /metrics`.
-- **Prometheus Metrics** — Exports standard Prometheus 0.0.4 metrics at `GET /metrics`.
+- **Headless Infrastructure** — Headless reverse proxy with zero frontend dependencies; provides JSON service status at `GET /` and Prometheus metrics at `GET /metrics`.
+- **Prometheus Metrics** — Exports standard Prometheus metrics at `GET /metrics`.
 
 ---
 
 ## Configuration
 
-Sukami is configured via environment variables, CLI flags, or a local `.env` file. Copy the example template to get started:
+Sukami is configured via environment variables, CLI flags, or a local `.env` file:
 
 ```bash
 cp .env.example .env
@@ -169,7 +169,7 @@ cp .env.example .env
 ```ini
 # Network & Proxy
 PORT=8080                               # Port to listen on (flag: -p, -port)
-UPSTREAM_URL=https://api.openai.com/v1  # Fallback upstream endpoint (flag: -upstream)
+UPSTREAM_URL=https://api.openai.com/v1  # Upstream provider endpoint (flag: -upstream)
 
 # Cloud Security Mode (optional)
 SUKAMI_API_KEY=                         # Master gateway key. Rejects unauthenticated callers before cache
@@ -232,14 +232,6 @@ go vet ./...
 # Build standalone production binary
 go build -o bin/sukami ./cmd/sukami
 ```
-
----
-
-## Roadmap
-
-- [ ] **Multi-Architecture Container Image** — Automated publishing to GitHub Container Registry (GHCR).
-- [ ] **Terminal Demo Recording** — ASCII/GIF demonstration of pruning and cache hits.
-- [ ] **Distributed Cache Sync** — Multi-node synchronization using Redis/Valkey.
 
 ---
 
