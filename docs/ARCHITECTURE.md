@@ -59,7 +59,9 @@ Sukami is a high-performance, zero-dependency AI Token Optimization Gateway and 
         [ Response Returned to Client ]
 ```
 
-> **Zero Authentication Friction:** Sukami acts as a transparent reverse proxy. Developers do not need to generate a proprietary Sukami API key to use the gateway. Clients connect with their standard upstream provider credentials (`Authorization: Bearer $OPENAI_API_KEY` or server-level `OPENAI_API_KEY` environment variables). Multi-tenant tenant keys (`X-Sukami-Key`) are purely optional for enterprise teams requiring segregated metrics and rate limits.
+> **Transparent Proxy & Cloud Security Mode:**
+> - **Local Developer Mode (Default):** Zero authentication friction. Point apps to `http://localhost:8080/v1` using standard upstream provider credentials (`Authorization: Bearer $OPENAI_API_KEY`).
+> - **Cloud Security Mode (`SUKAMI_API_KEY`):** When deployed on remote cloud servers or public networks, set `SUKAMI_API_KEY=your-secret` to lock down the gateway. All requests require `X-Sukami-Master-Key` or valid tenant keys, and unauthenticated callers are rejected with `401 Unauthorized` before accessing cache or upstream providers (Zero Cache Leak guarantee). Multi-tenant keys (`X-Sukami-Key`) provide segregated metrics and rate limits.
 
 ---
 

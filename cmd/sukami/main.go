@@ -77,6 +77,13 @@ func main() {
 	authStore := auth.NewMemoryKeyStore()
 	limiter := auth.NewRateLimiter()
 	proxyHandler := proxy.NewHandler(memoryCache, tracker, authStore, limiter, upstreamURL)
+	if gwKey := strings.TrimSpace(os.Getenv("SUKAMI_API_KEY")); gwKey != "" {
+		proxyHandler.SetGatewayKey(gwKey)
+		slog.Info("🔒 Cloud Security Mode: Gateway master authentication active")
+	} else if gwKey := strings.TrimSpace(os.Getenv("GATEWAY_KEY")); gwKey != "" {
+		proxyHandler.SetGatewayKey(gwKey)
+		slog.Info("🔒 Cloud Security Mode: Gateway master authentication active")
+	}
 
 	// Fetch live model pricing dynamically from pricing API on boot (zero hardcoding)
 	go func() {

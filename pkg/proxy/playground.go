@@ -94,6 +94,10 @@ func (h *Handler) HandlePrometheusMetrics(w http.ResponseWriter, r *http.Request
 
 // HandleListKeys returns all registered tenant API keys.
 func (h *Handler) HandleListKeys(w http.ResponseWriter, r *http.Request) {
+	if !h.requireMasterAuth(r) {
+		writeError(w, http.StatusUnauthorized, "Unauthorized: Master API key required")
+		return
+	}
 	keys := h.authStore.ListKeys()
 	writeJSON(w, http.StatusOK, keys)
 }
@@ -106,6 +110,10 @@ type CreateKeyRequest struct {
 
 // HandleCreateKey provisions a new tenant API key.
 func (h *Handler) HandleCreateKey(w http.ResponseWriter, r *http.Request) {
+	if !h.requireMasterAuth(r) {
+		writeError(w, http.StatusUnauthorized, "Unauthorized: Master API key required")
+		return
+	}
 	var req CreateKeyRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "Invalid request body")
@@ -123,6 +131,10 @@ func (h *Handler) HandleCreateKey(w http.ResponseWriter, r *http.Request) {
 
 // HandleDeleteKey revokes an API key.
 func (h *Handler) HandleDeleteKey(w http.ResponseWriter, r *http.Request) {
+	if !h.requireMasterAuth(r) {
+		writeError(w, http.StatusUnauthorized, "Unauthorized: Master API key required")
+		return
+	}
 	key := r.URL.Query().Get("key")
 	if key == "" {
 		writeError(w, http.StatusBadRequest, "Missing key query parameter")
