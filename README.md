@@ -1,18 +1,15 @@
 <div align="center">
 
-<img src="https://repository-images.githubusercontent.com/1432389674/c046d1bc-754b-44ee-8431-c32f71b7f37a" alt="Sukami - Open-source AI infrastructure in Go" width="100%" />
+<img src="https://repository-images.githubusercontent.com/1432389674/904ceb71-a090-471d-b7ce-4e98d1bcfa22" alt="Sukami - Open-source AI infrastructure in Go" width="100%" />
 
 <br />
 <br />
-
-# ⚡ Sukami
-
-**OpenAI-compatible caching proxy and token optimizer in pure Go.**
 
 [![Release](https://img.shields.io/github/v/release/alexpatil/sukami?style=flat-square&color=blue)](https://github.com/alexpatil/sukami/releases)
 [![Go Version](https://img.shields.io/badge/Go-1.22+-00ADD8?style=flat-square&logo=go&logoColor=white)](https://go.dev)
 [![License: MIT](https://img.shields.io/badge/License-MIT-6B7280?style=flat-square)](LICENSE)
 
+<br />
 <br />
 
 [Quickstart](#quickstart) • [Usage](#usage) • [Features](#features) • [Configuration](#configuration) • [Benchmarks](#benchmarks) • [Architecture](docs/ARCHITECTURE.md)
