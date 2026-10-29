@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://repository-images.githubusercontent.com/1432389674/904ceb71-a090-471d-b7ce-4e98d1bcfa22" alt="Sukami - Open-source AI infrastructure in Go" width="100%" />
+<img src="https://repository-images.githubusercontent.com/1432389674/904ceb71-a090-471d-b7ce-4e98d1bcfa22" alt="Sukami - Open-source AI infrastructure in Go" width="750" />
 
 <br />
 <br />
