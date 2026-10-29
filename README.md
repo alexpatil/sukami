@@ -5,25 +5,31 @@
 <br />
 <br />
 
+[Quickstart](#quickstart) • [Usage](#usage) • [Features](#features) • [Configuration](#configuration) • [Benchmarks](#benchmarks) • [Architecture](docs/ARCHITECTURE.md) • [Releases](https://github.com/alexpatil/sukami/releases)
+
+<br />
+<br />
+
+**The transparent token optimization data-plane between your applications and upstream LLMs.**
+<br />
+Sukami is an open-source AI infrastructure proxy in pure Go. It prunes prompt bloat, serves repeated queries from an in-memory semantic cache, and dynamically routes simple queries to economy models.
+
+<br />
+
 [![Release](https://img.shields.io/github/v/release/alexpatil/sukami?style=flat-square&color=blue)](https://github.com/alexpatil/sukami/releases)
 [![Go Version](https://img.shields.io/badge/Go-1.22+-00ADD8?style=flat-square&logo=go&logoColor=white)](https://go.dev)
 [![License: MIT](https://img.shields.io/badge/License-MIT-6B7280?style=flat-square)](LICENSE)
-
-<br />
-<br />
-
-[Quickstart](#quickstart) • [Usage](#usage) • [Features](#features) • [Configuration](#configuration) • [Benchmarks](#benchmarks) • [Architecture](docs/ARCHITECTURE.md)
+[![XERJ Corpus Hub contributor](https://hub.xerj.org/contributors/alexpatil/badge.svg)](https://hub.xerj.org/contributors/alexpatil)
 
 </div>
 
 ---
 
-Sukami is a reverse proxy that sits between your applications and upstream LLM providers. It prunes conversational filler from prompts, serves repeated queries from an in-memory semantic cache, and exports standard Prometheus metrics—with zero changes to your application logic.
-
 - **Zero dependencies** — Built exclusively with the Go standard library, packaged as a single static binary.
 - **Drop-in integration** — Works with official OpenAI SDKs by changing only the `base_url`.
 - **In-memory cache** — Cosine vector similarity with semantic collision guards.
 - **Low latency** — Sub-millisecond in-process overhead and fast cache retrieval.
+- **Smart routing** — Upstream-aware dynamic model routing to economy tiers while preserving flagship intelligence.
 
 ---
 
