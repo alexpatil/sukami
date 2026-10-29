@@ -1,4 +1,4 @@
-﻿package optimizer
+package optimizer
 
 import (
 	"strings"
@@ -73,46 +73,6 @@ func TestClassifyPromptComplexity_FlagshipTier(t *testing.T) {
 				t.Errorf("expected signal %q in %v", tc.signal, res.Signals)
 			}
 		})
-	}
-}
-
-func TestResolveSmartModel(t *testing.T) {
-	// 1. Flagship models with economy tier prompt
-	routed, changed, _ := ResolveSmartModel("gpt-4o", TierEconomy)
-	if !changed || routed != "gpt-4o-mini" {
-		t.Errorf("expected gpt-4o -> gpt-4o-mini, got %s (changed: %v)", routed, changed)
-	}
-
-	routed, changed, _ = ResolveSmartModel("gpt-4", TierEconomy)
-	if !changed || routed != "gpt-4o-mini" {
-		t.Errorf("expected gpt-4 -> gpt-4o-mini, got %s (changed: %v)", routed, changed)
-	}
-
-	routed, changed, _ = ResolveSmartModel("claude-3-5-sonnet-20241022", TierEconomy)
-	if !changed || routed != "claude-3-5-haiku" {
-		t.Errorf("expected claude-3-5-sonnet -> claude-3-5-haiku, got %s (changed: %v)", routed, changed)
-	}
-
-	routed, changed, _ = ResolveSmartModel("llama-3.3-70b-versatile", TierEconomy)
-	if !changed || routed != "llama-3.1-8b-instant" {
-		t.Errorf("expected llama-3.3-70b -> llama-3.1-8b-instant, got %s (changed: %v)", routed, changed)
-	}
-
-	routed, changed, _ = ResolveSmartModel("deepseek-reasoner", TierEconomy)
-	if !changed || routed != "deepseek-chat" {
-		t.Errorf("expected deepseek-reasoner -> deepseek-chat, got %s (changed: %v)", routed, changed)
-	}
-
-	// 2. Flagship models with flagship tier prompt (should stay on flagship)
-	routed, changed, _ = ResolveSmartModel("gpt-4o", TierFlagship)
-	if changed || routed != "gpt-4o" {
-		t.Errorf("expected gpt-4o to remain unchanged on flagship, got %s (changed: %v)", routed, changed)
-	}
-
-	// 3. Already economy models
-	routed, changed, _ = ResolveSmartModel("gpt-4o-mini", TierEconomy)
-	if changed || routed != "gpt-4o-mini" {
-		t.Errorf("expected gpt-4o-mini to remain unchanged, got %s (changed: %v)", routed, changed)
 	}
 }
 

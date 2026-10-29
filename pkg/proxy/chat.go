@@ -69,7 +69,8 @@ func (h *Handler) HandleChatCompletions(w http.ResponseWriter, r *http.Request) 
 	// saving up to 95% in token costs, while preserving flagship models for complex code & math.
 	if r.Header.Get("X-Sukami-Smart-Route") == "true" || r.Header.Get("X-Sukami-Smart-Route") == "auto" || os.Getenv("ENABLE_SMART_ROUTING") == "true" {
 		classification := optimizer.ClassifyPromptComplexity(userPrompt)
-		if routedModel, changed, reason := optimizer.ResolveSmartModel(chatReq.Model, classification.Tier); changed {
+		targetURL := h.resolveUpstreamTarget(r)
+		if routedModel, changed, reason := optimizer.ResolveSmartModel(targetURL, chatReq.Model, classification.Tier); changed {
 			w.Header().Set("X-Sukami-Original-Model", chatReq.Model)
 			w.Header().Set("X-Sukami-Routed-Model", routedModel)
 			w.Header().Set("X-Sukami-Route-Tier", string(classification.Tier))

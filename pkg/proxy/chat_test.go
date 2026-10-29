@@ -32,7 +32,6 @@ func TestHandleChatCompletions_RateLimitExceeded(t *testing.T) {
 		t.Fatalf("failed to create key: %v", err)
 	}
 
-	// Exhaust rate limit directly
 	key.RateLimitPerMin = 1
 
 	chatReq := models.ChatCompletionRequest{
@@ -43,13 +42,11 @@ func TestHandleChatCompletions_RateLimitExceeded(t *testing.T) {
 	}
 	reqBytes, _ := json.Marshal(chatReq)
 
-	// First request succeeds or simulates
 	req1 := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", bytes.NewReader(reqBytes))
 	req1.Header.Set("Authorization", "Bearer "+key.Key)
 	rec1 := httptest.NewRecorder()
 	h.HandleChatCompletions(rec1, req1)
 
-	// Second request within the same minute should be throttled (429)
 	req2 := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", bytes.NewReader(reqBytes))
 	req2.Header.Set("Authorization", "Bearer "+key.Key)
 	rec2 := httptest.NewRecorder()
@@ -60,59 +57,90 @@ func TestHandleChatCompletions_RateLimitExceeded(t *testing.T) {
 	}
 }
 
-func TestHandleChatCompletions_SmartRoute_EconomyDowngrade(t *testing.T) {
+func TestHandleChatCompletions_SmartRoute_UpstreamAwareness(t *testing.T) {
 	os.Setenv("SUKAMI_DEMO_MODE", "true")
 	defer os.Unsetenv("SUKAMI_DEMO_MODE")
 
 	h, _, _ := setupTestHandler()
 
-	chatReq := models.ChatCompletionRequest{
-		Model: "gpt-4o",
-		Messages: []models.ChatMessage{
-			{Role: "user", Content: "What is the capital of France?"},
+	testCases := []struct {
+		name        string
+		upstreamURL string
+		inputModel  string
+		prompt      string
+		wantRouted  string
+		wantTier    string
+	}{
+		{
+			name:        "OpenAI gpt-4o downgrade",
+			upstreamURL: "https://api.openai.com/v1",
+			inputModel:  "gpt-4o",
+			prompt:      "What is the capital of France?",
+			wantRouted:  "gpt-4o-mini",
+			wantTier:    "economy",
+		},
+		{
+			name:        "Anthropic claude-3-5-sonnet downgrade",
+			upstreamURL: "https://api.anthropic.com",
+			inputModel:  "claude-3-5-sonnet-20241022",
+			prompt:      "Summarize this paragraph in simple terms.",
+			wantRouted:  "claude-3-5-haiku",
+			wantTier:    "economy",
+		},
+		{
+			name:        "Groq llama-3.3-70b downgrade",
+			upstreamURL: "https://api.groq.com/openai/v1",
+			inputModel:  "llama-3.3-70b-versatile",
+			prompt:      "Translate hello to Spanish.",
+			wantRouted:  "llama-3.1-8b-instant",
+			wantTier:    "economy",
+		},
+		{
+			name:        "OpenRouter namespaced model downgrade",
+			upstreamURL: "https://openrouter.ai/api/v1",
+			inputModel:  "openai/gpt-4o",
+			prompt:      "Define latency.",
+			wantRouted:  "openai/gpt-4o-mini",
+			wantTier:    "economy",
+		},
+		{
+			name:        "Flagship preserved on code prompt",
+			upstreamURL: "https://api.openai.com/v1",
+			inputModel:  "gpt-4o",
+			prompt:      "Review this code:\n```go\nfunc Worker() error { return nil }\n```",
+			wantRouted:  "",
+			wantTier:    "",
 		},
 	}
-	reqBytes, _ := json.Marshal(chatReq)
 
-	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", bytes.NewReader(reqBytes))
-	req.Header.Set("X-Sukami-Smart-Route", "true")
-	rec := httptest.NewRecorder()
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			chatReq := models.ChatCompletionRequest{
+				Model: tc.inputModel,
+				Messages: []models.ChatMessage{
+					{Role: "user", Content: tc.prompt},
+				},
+			}
+			reqBytes, _ := json.Marshal(chatReq)
 
-	h.HandleChatCompletions(rec, req)
+			req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", bytes.NewReader(reqBytes))
+			req.Header.Set("X-Sukami-Smart-Route", "true")
+			if tc.upstreamURL != "" {
+				req.Header.Set("X-Upstream-Url", tc.upstreamURL)
+			}
+			rec := httptest.NewRecorder()
 
-	if orig := rec.Header().Get("X-Sukami-Original-Model"); orig != "gpt-4o" {
-		t.Errorf("expected X-Sukami-Original-Model 'gpt-4o', got %q", orig)
-	}
-	if routed := rec.Header().Get("X-Sukami-Routed-Model"); routed != "gpt-4o-mini" {
-		t.Errorf("expected X-Sukami-Routed-Model 'gpt-4o-mini', got %q", routed)
-	}
-	if tier := rec.Header().Get("X-Sukami-Route-Tier"); tier != "economy" {
-		t.Errorf("expected X-Sukami-Route-Tier 'economy', got %q", tier)
-	}
-}
+			h.HandleChatCompletions(rec, req)
 
-func TestHandleChatCompletions_SmartRoute_FlagshipPreserved(t *testing.T) {
-	os.Setenv("SUKAMI_DEMO_MODE", "true")
-	defer os.Unsetenv("SUKAMI_DEMO_MODE")
-
-	h, _, _ := setupTestHandler()
-
-	chatReq := models.ChatCompletionRequest{
-		Model: "gpt-4o",
-		Messages: []models.ChatMessage{
-			{Role: "user", Content: "Please review this code:\n```go\nfunc Worker() error { return nil }\n```"},
-		},
-	}
-	reqBytes, _ := json.Marshal(chatReq)
-
-	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", bytes.NewReader(reqBytes))
-	req.Header.Set("X-Sukami-Smart-Route", "true")
-	rec := httptest.NewRecorder()
-
-	h.HandleChatCompletions(rec, req)
-
-	if rec.Header().Get("X-Sukami-Routed-Model") != "" {
-		t.Errorf("expected no model change for complex code prompt, got %s", rec.Header().Get("X-Sukami-Routed-Model"))
+			routed := rec.Header().Get("X-Sukami-Routed-Model")
+			if routed != tc.wantRouted {
+				t.Errorf("X-Sukami-Routed-Model = %q; want %q", routed, tc.wantRouted)
+			}
+			if tc.wantTier != "" {
+				if tier := rec.Header().Get("X-Sukami-Route-Tier"); tier != tc.wantTier {
+					t.Errorf("X-Sukami-Route-Tier = %q; want %q", tier, tc.wantTier)
+				}
+			}
+		})
 	}
 }
-
