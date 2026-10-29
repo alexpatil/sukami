@@ -1,4 +1,4 @@
-﻿package proxy
+package proxy
 
 import (
 	"bytes"
@@ -26,7 +26,7 @@ func (h *Handler) forwardUpstream(
 	start time.Time,
 ) {
 	optimizedBody, _ := json.Marshal(chatReq)
-	targetURL := h.resolveUpstreamTarget(r, chatReq.Model)
+	targetURL := h.resolveUpstreamTarget(r)
 
 	upReq, err := http.NewRequestWithContext(r.Context(), http.MethodPost, targetURL, bytes.NewReader(optimizedBody))
 	if err != nil {

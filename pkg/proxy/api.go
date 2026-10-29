@@ -27,10 +27,6 @@ func (h *Handler) HandleModels(w http.ResponseWriter, r *http.Request) {
 		targetBase = custom
 	} else if custom := r.Header.Get("X-Base-Url"); custom != "" {
 		targetBase = custom
-	} else if providerID := strings.ToLower(strings.TrimSpace(r.Header.Get("X-Provider"))); providerID != "" {
-		if p, ok := knownProviders[providerID]; ok {
-			targetBase = p.BaseURL
-		}
 	}
 
 	trimmed := strings.TrimRight(strings.TrimSpace(targetBase), "/")

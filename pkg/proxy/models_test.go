@@ -110,3 +110,4 @@ func TestHandleModels_WithCustomUpstreamHeader(t *testing.T) {
 		t.Errorf("expected custom-node-model in response, got %s", rec.Body.String())
 	}
 }
+
