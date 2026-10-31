@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: sukami:latest
+    image: ghcr.io/alexpatil/sukami:latest
     container_name: sukami-gateway
     restart: unless-stopped
     ports:
