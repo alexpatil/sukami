@@ -17,6 +17,7 @@ Sukami is an open-source AI infrastructure proxy in pure Go. It prunes prompt bl
 <br />
 
 [![Release](https://img.shields.io/github/v/release/alexpatil/sukami?style=flat-square&color=blue)](https://github.com/alexpatil/sukami/releases)
+[![Docker](https://img.shields.io/badge/Docker-ghcr.io-2496ED?style=flat-square&logo=docker&logoColor=white)](https://github.com/alexpatil/sukami/pkgs/container/sukami)
 [![Go Version](https://img.shields.io/badge/Go-1.22+-00ADD8?style=flat-square&logo=go&logoColor=white)](https://go.dev)
 [![License: MIT](https://img.shields.io/badge/License-MIT-6B7280?style=flat-square)](LICENSE)
 [![XERJ Corpus Hub contributor](https://hub.xerj.org/contributors/alexpatil/badge.svg)](https://hub.xerj.org/contributors/alexpatil)
@@ -35,7 +36,15 @@ Sukami is an open-source AI infrastructure proxy in pure Go. It prunes prompt bl
 
 ## Quickstart
 
-### Option A: Standalone Binary
+### Option A: Run with Docker (Fastest — 5 Seconds)
+
+Run instantly without cloning the repository or installing Go:
+
+```bash
+docker run -d -p 8080:8080 -e UPSTREAM_URL=https://api.openai.com/v1 ghcr.io/alexpatil/sukami:latest
+```
+
+### Option B: Standalone Binary
 
 Download the pre-compiled binary for Linux, macOS, or Windows from [Releases](https://github.com/alexpatil/sukami/releases):
 
@@ -46,20 +55,18 @@ chmod +x sukami
 ./sukami
 ```
 
-### Option B: Run with Go (1.22+)
+### Option C: Build from Source (Go or Docker Compose)
 
 ```bash
 git clone https://github.com/alexpatil/sukami.git
 cd sukami
-cp .env.example .env  # optional configuration
+# Run with Go
 go run ./cmd/sukami
-```
 
-### Option C: Run with Docker
-
-```bash
+# Or run with Docker Compose
 docker compose up -d
 ```
+
 
 The gateway starts at `http://localhost:8080`.
 

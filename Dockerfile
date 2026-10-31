@@ -1,7 +1,7 @@
 # ---------------------------------------------------------
 # Build Stage
 # ---------------------------------------------------------
-FROM golang:alpine AS builder
+FROM golang:1.22-alpine AS builder
 
 WORKDIR /src
 
@@ -9,10 +9,9 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 
-# Copy source code and dashboard static assets
+# Copy source code
 COPY cmd/ ./cmd/
 COPY pkg/ ./pkg/
-COPY web/ ./web/
 
 # Compile high-performance static binary with zero debug bloat
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /src/bin/sukami ./cmd/sukami
@@ -28,9 +27,8 @@ RUN apk --no-cache add ca-certificates curl \
 
 WORKDIR /app
 
-# Copy binary and dashboard static assets
+# Copy binary
 COPY --from=builder /src/bin/sukami /app/sukami
-COPY --from=builder /src/web /app/web
 
 # Run as non-root unprivileged user for production security
 USER sukami:sukami
