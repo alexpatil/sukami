@@ -2,11 +2,14 @@ package proxy
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"strings"
 	"sukami/pkg/models"
 	"sukami/pkg/optimizer"
@@ -62,19 +65,25 @@ func (h *Handler) forwardUpstream(
 		return
 	}
 
+	effectiveMaxRetries := h.resolveEffectiveMaxRetries(r)
 	optimizedBody, _ := json.Marshal(chatReq)
-	upReq, err := http.NewRequestWithContext(r.Context(), http.MethodPost, targetURL, bytes.NewReader(optimizedBody))
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "Failed to create upstream request")
-		return
+	reqFactory := func() (*http.Request, error) {
+		req, err := http.NewRequestWithContext(r.Context(), http.MethodPost, targetURL, bytes.NewReader(optimizedBody))
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", authHeader)
+		return req, nil
 	}
 
-	upReq.Header.Set("Content-Type", "application/json")
-	upReq.Header.Set("Authorization", authHeader)
-
-	resp, err := h.httpClient.Do(upReq)
+	resp, retries, err := h.executeWithRetry(r.Context(), reqFactory, effectiveMaxRetries)
 	if err != nil {
-		slog.Error("Upstream failure", "err", err)
+		if errors.Is(err, context.Canceled) {
+			writeError(w, 499, "Client closed request")
+			return
+		}
+		slog.Error("Upstream failure", "err", err, "retries", retries)
 		writeError(w, http.StatusBadGateway, fmt.Sprintf("Upstream call error: %v", err))
 		return
 	}
@@ -89,6 +98,7 @@ func (h *Handler) forwardUpstream(
 	}
 	w.Header().Set("X-Cache", "MISS")
 	w.Header().Set("X-Sukami-Pruned-Tokens", fmt.Sprintf("%d", comp.SavedTokens))
+	w.Header().Set("X-Sukami-Retries", strconv.Itoa(retries))
 	w.WriteHeader(resp.StatusCode)
 
 	if chatReq.Stream {

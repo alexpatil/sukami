@@ -122,7 +122,10 @@ curl http://localhost:8080/v1/chat/completions \
   }'
 ```
 
-Responses are standard OpenAI JSON objects with an added `X-Cache` header (`HIT` or `MISS`).
+Responses are standard OpenAI JSON objects with added observability headers:
+- `X-Cache`: `HIT` (served from semantic cache) or `MISS` (forwarded to upstream).
+- `X-Sukami-Pruned-Tokens`: Number of redundant tokens pruned before forwarding.
+- `X-Sukami-Retries`: Count of transient upstream retry attempts executed (`0`, `1`, `2`).
 
 ---
 
@@ -165,6 +168,7 @@ For complete technical specifications, see [docs/ARCHITECTURE.md](docs/ARCHITECT
 
 - **Prompt Pruning** — Strips conversational filler and redundant whitespace. Code blocks and markdown indentation are unconditionally preserved.
 - **In-Memory Semantic Cache** — Caches responses using vector similarity matching (>0.85). Built-in entity and opposites guards prevent false matches between distinct concepts (such as `Docker` vs `Kubernetes` or `encrypt` vs `decrypt`).
+- **Automatic Transient Error Retries** — Transparently retries transient rate limits (`HTTP 429`) and server overloads (`502`, `503`, `504`) with jittered exponential backoff and `Retry-After` header respect. Configurable via `UPSTREAM_MAX_RETRIES` or per-request with `X-Sukami-Max-Retries`.
 - **Smart Model Routing (Opt-in)** — Evaluates prompt complexity in-process without external API calls. Routes simple queries to economy models while preserving flagship models for complex code and multi-step reasoning.
 - **Cloud Security Mode** — Set `SUKAMI_API_KEY` to protect the proxy on public networks. Rejects unauthenticated callers before cache access to prevent unauthorized cache inspection.
 - **Multi-Tenant Keys** — Create tenant keys with dedicated rate limits and usage tracking via `/api/keys`.
@@ -192,6 +196,9 @@ SUKAMI_API_KEY=                         # Master gateway key. Rejects unauthenti
 # Dynamic Optimization (can also be toggled per-request via headers)
 ENABLE_SMART_ROUTING=false              # Route simple queries to economy models (header: X-Sukami-Smart-Route: true)
 ENABLE_OUTPUT_DENSITY=false             # Inject anti-fluff instructions into prompts (header: X-Sukami-Density: true)
+
+# Resilience & Retries (optional)
+UPSTREAM_MAX_RETRIES=2                  # Max retries for transient 429/502/503/504 errors (header: X-Sukami-Max-Retries)
 
 # Upstream Fallback (optional: clients typically pass keys via Authorization header)
 UPSTREAM_API_KEY=                       # Default upstream API key fallback

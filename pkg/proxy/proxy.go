@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"net"
 	"net/http"
+	"os"
+	"strconv"
 	"strings"
 	"sukami/pkg/auth"
 	"sukami/pkg/metrics"
@@ -37,6 +39,7 @@ type Handler struct {
 	limiter     *auth.RateLimiter
 	upstreamURL string
 	gatewayKey  string
+	maxRetries  int
 	httpClient  *http.Client
 }
 
@@ -55,12 +58,19 @@ func NewHandler(cache Cache, tracker RequestTracker, authStore auth.KeyStore, li
 		TLSHandshakeTimeout:   10 * time.Second,
 		ExpectContinueTimeout: 1 * time.Second,
 	}
+	retries := 2
+	if envVal := os.Getenv("UPSTREAM_MAX_RETRIES"); envVal != "" {
+		if n, err := strconv.Atoi(envVal); err == nil && n >= 0 {
+			retries = n
+		}
+	}
 	return &Handler{
 		cache:       cache,
 		tracker:     tracker,
 		authStore:   authStore,
 		limiter:     limiter,
 		upstreamURL: upstreamURL,
+		maxRetries:  retries,
 		httpClient: &http.Client{
 			Transport: transport,
 			Timeout:   120 * time.Second,
