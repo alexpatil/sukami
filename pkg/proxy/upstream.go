@@ -100,6 +100,6 @@ func (h *Handler) forwardUpstream(
 	if err == nil && resp.StatusCode == http.StatusOK {
 		h.cache.SetSemantic(cacheKey, userPrompt, respBytes, cacheModel)
 	}
-	w.Write(respBytes)
+	_, _ = w.Write(respBytes)
 	h.recordMissMetric(reqID, chatReq.Model, userPrompt, comp, start, fmt.Sprintf("%d OK", resp.StatusCode), respBytes)
 }

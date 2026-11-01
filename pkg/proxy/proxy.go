@@ -72,7 +72,7 @@ func NewHandler(cache Cache, tracker RequestTracker, authStore auth.KeyStore, li
 func writeJSON(w http.ResponseWriter, status int, data any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(data)
+	_ = json.NewEncoder(w).Encode(data)
 }
 
 // writeError sends an OpenAI-compatible JSON error.
