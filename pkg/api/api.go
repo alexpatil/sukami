@@ -5,17 +5,16 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"time"
-
 	"sukami/pkg/auth"
 	"sukami/pkg/metrics"
 	"sukami/pkg/proxy"
+	"time"
 )
 
-// Version represents the release version of the Sukami gateway.
-var Version = "v0.3.0"
+// Version identifies the current semantic release version of the gateway.
+const Version = "v0.3.0"
 
-// API represents the HTTP API surface and routing engine.
+// API orchestrates HTTP handlers for the proxy data-plane, status, and management endpoints.
 type API struct {
 	proxyHandler *proxy.Handler
 	tracker      *metrics.Tracker
@@ -66,7 +65,7 @@ func (a *API) Router() http.Handler {
 	// System Health & Service Descriptor
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintf(w, `{"status":"ok","timestamp":"%s"}`+"\n", time.Now().UTC().Format(time.RFC3339))
+		_, _ = fmt.Fprintf(w, `{"status":"ok","timestamp":"%s"}`+"\n", time.Now().UTC().Format(time.RFC3339))
 	})
 	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
@@ -74,7 +73,7 @@ func (a *API) Router() http.Handler {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintf(w, `{"service":"sukami","version":"%s","status":"healthy","docs":"https://github.com/alexpatil/sukami"}`+"\n", Version)
+		_, _ = fmt.Fprintf(w, `{"service":"sukami","version":"%s","status":"healthy","docs":"https://github.com/alexpatil/sukami"}`+"\n", Version)
 	})
 
 	return CorsMiddleware(mux)
@@ -124,12 +123,13 @@ func (a *API) HandleListKeys(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, keys)
 }
 
-// HandleCreateKey provisions a new tenant API key.
+// HandleCreateKey provisions a new tenant API key with associated rate limits and usage tracking.
 func (a *API) HandleCreateKey(w http.ResponseWriter, r *http.Request) {
 	if !a.isMasterAuth(r) {
 		writeError(w, http.StatusUnauthorized, "Unauthorized: Master API key required")
 		return
 	}
+
 	var req CreateKeyRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "Invalid request body")
@@ -138,14 +138,14 @@ func (a *API) HandleCreateKey(w http.ResponseWriter, r *http.Request) {
 
 	key, err := a.authStore.CreateKey(req.Name, req.Tier)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
 	writeJSON(w, http.StatusCreated, key)
 }
 
-// HandleDeleteKey revokes an API key.
+// HandleDeleteKey revokes an active tenant key.
 func (a *API) HandleDeleteKey(w http.ResponseWriter, r *http.Request) {
 	if !a.isMasterAuth(r) {
 		writeError(w, http.StatusUnauthorized, "Unauthorized: Master API key required")

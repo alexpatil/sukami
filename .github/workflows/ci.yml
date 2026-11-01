@@ -22,3 +22,18 @@ jobs:
         run: go test -v -race ./...
       - name: Build Binary
         run: go build -v -o bin/sukami ./cmd/sukami
+
+  lint:
+    name: Golangci-lint Static Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: v1.60
+          args: --timeout=5m

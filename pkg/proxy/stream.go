@@ -60,7 +60,7 @@ func (h *Handler) respondSimulated(
 	}
 
 	w.WriteHeader(http.StatusOK)
-	w.Write(respJSON)
+	_, _ = w.Write(respJSON)
 }
 
 // streamCachedResponse streams cached content over Server-Sent Events (SSE).
@@ -68,14 +68,14 @@ func (h *Handler) streamCachedResponse(w http.ResponseWriter, r *http.Request, j
 	flusher, ok := w.(http.Flusher)
 	if !ok {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write(jsonBytes)
+		_, _ = w.Write(jsonBytes)
 		return
 	}
 
 	var resp models.ChatCompletionResponse
 	if err := json.Unmarshal(jsonBytes, &resp); err != nil {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write(jsonBytes)
+		_, _ = w.Write(jsonBytes)
 		return
 	}
 
