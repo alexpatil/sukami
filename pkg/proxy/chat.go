@@ -91,7 +91,11 @@ func (h *Handler) HandleChatCompletions(w http.ResponseWriter, r *http.Request) 
 	// Build deterministic hash key for semantic cache
 	cacheKey := cache.ComputeHash(cacheModel, buildPromptFingerprint(comp.Messages))
 
-	// 4. Check Semantic Cache (Exact Hash or Cosine Similarity > 0.85)
+	// 4. Check Cache (Exact Conversation Hash or Semantic Cosine Similarity > 0.85)
+	if cachedBytes, found := h.cache.Get(cacheKey); found {
+		h.respondFromCache(w, r, cachedBytes, chatReq, comp, reqID, userPrompt, 1.0, start)
+		return
+	}
 	if cachedBytes, hit, sim := h.cache.GetSemantic(cacheModel, userPrompt, 0.85); hit {
 		h.respondFromCache(w, r, cachedBytes, chatReq, comp, reqID, userPrompt, sim, start)
 		return
@@ -130,12 +134,18 @@ func (h *Handler) respondFromCache(
 	}
 	h.recordHitMetric(reqID, chatReq.Model, userPrompt, comp, start, statusText, cachedBytes)
 
-	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("X-Cache", "HIT")
 	w.Header().Set("X-Sukami-Latency", fmt.Sprintf("%dms", latency))
 	w.Header().Set("X-Sukami-Savings", fmt.Sprintf("%.1f%%", comp.SavingsPercent))
 	w.Header().Set("X-Sukami-Pruned-Tokens", fmt.Sprintf("%d", comp.SavedTokens))
 	w.Header().Set("X-Sukami-Request-ID", reqID)
+
+	if chatReq.Stream {
+		h.streamCachedResponse(w, r, cachedBytes, chatReq.Model)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(cachedBytes)
 }
