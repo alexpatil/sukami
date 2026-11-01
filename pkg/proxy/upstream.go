@@ -92,23 +92,7 @@ func (h *Handler) forwardUpstream(
 	w.WriteHeader(resp.StatusCode)
 
 	if chatReq.Stream {
-		flusher, isFlusher := w.(http.Flusher)
-		buf := make([]byte, 4096)
-		for {
-			n, readErr := resp.Body.Read(buf)
-			if n > 0 {
-				if _, writeErr := w.Write(buf[:n]); writeErr != nil {
-					break
-				}
-				if isFlusher {
-					flusher.Flush()
-				}
-			}
-			if readErr != nil {
-				break
-			}
-		}
-		h.recordMissMetric(reqID, chatReq.Model, userPrompt, comp, start, fmt.Sprintf("%d Stream", resp.StatusCode), nil)
+		h.forwardAndCaptureStream(w, resp, chatReq, comp, cacheKey, cacheModel, reqID, userPrompt, start)
 		return
 	}
 
