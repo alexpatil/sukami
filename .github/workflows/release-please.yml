@@ -12,8 +12,59 @@ permissions:
 jobs:
   release-please:
     runs-on: ubuntu-latest
+    outputs:
+      releases_created: ${{ steps.release.outputs.releases_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
     steps:
-      - uses: googleapis/release-please-action@v4
+      - id: release
+        uses: googleapis/release-please-action@v4
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+
+  build-artifacts:
+    name: Build & Upload Release Binaries
+    needs: release-please
+    if: ${{ needs.release-please.outputs.releases_created }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+            output: sukami-linux-amd64
+          - goos: linux
+            goarch: arm64
+            output: sukami-linux-arm64
+          - goos: darwin
+            goarch: amd64
+            output: sukami-darwin-amd64
+          - goos: darwin
+            goarch: arm64
+            output: sukami-darwin-arm64
+          - goos: windows
+            goarch: amd64
+            output: sukami-windows-amd64.exe
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Build Binary
+        env:
+          CGO_ENABLED: '0'
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          mkdir -p dist
+          go build -ldflags="-s -w -X 'sukami/pkg/api.Version=${{ needs.release-please.outputs.tag_name }}'" -o dist/${{ matrix.output }} ./cmd/sukami
+
+      - name: Upload Binary to Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload ${{ needs.release-please.outputs.tag_name }} dist/${{ matrix.output }} --clobber
