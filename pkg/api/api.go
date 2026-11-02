@@ -12,7 +12,8 @@ import (
 )
 
 // Version identifies the current semantic release version of the gateway.
-const Version = "v0.3.0"
+// Version identifies the running release version of the gateway, injected dynamically at build time via -ldflags.
+var Version = "dev"
 
 // API orchestrates HTTP handlers for the proxy data-plane, status, and management endpoints.
 type API struct {
