@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.6.0](https://github.com/alexpatil/sukami/compare/v0.5.0...v0.6.0) (2026-11-02)
+
+
+### Features
+
+* **cli:** add -v and --version flags to print binary version ([#41](https://github.com/alexpatil/sukami/issues/41)) ([793cd71](https://github.com/alexpatil/sukami/commit/793cd7186c79d573a317af9c11e7163acbf052d5))
+
+
+### Bug Fixes
+
+* **ci:** configure standard v-tags and automated binary uploads in release-please ([#39](https://github.com/alexpatil/sukami/issues/39)) ([cc669b3](https://github.com/alexpatil/sukami/commit/cc669b38f01f47cad80015acd084eb3ad2c792cd))
+* **ci:** evaluate release-created condition strictly and enable pre-major patch bumps ([#42](https://github.com/alexpatil/sukami/issues/42)) ([4e049dd](https://github.com/alexpatil/sukami/commit/4e049ddbd962016347610d717d6a478081e2ea42))
+
 ## [0.5.0](https://github.com/alexpatil/sukami/compare/sukami-v0.4.0...sukami-v0.5.0) (2026-11-01)
 
 
