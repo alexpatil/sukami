@@ -6,15 +6,15 @@ import (
 	"testing"
 )
 
-func TestCLI_VersionFlag_Short(t *testing.T) {
+func TestCLI_VersionFlag_DefaultDev(t *testing.T) {
 	cmd := exec.Command("go", "run", ".", "-v")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("expected command to exit cleanly 0, got err: %v, out: %s", err, string(out))
 	}
 	output := strings.TrimSpace(string(out))
-	if !strings.HasPrefix(output, "sukami version ") {
-		t.Fatalf("expected output to start with 'sukami version ', got %q", output)
+	if output != "sukami version dev" {
+		t.Fatalf("expected 'sukami version dev', got %q", output)
 	}
 }
 
@@ -25,7 +25,7 @@ func TestCLI_VersionFlag_Long(t *testing.T) {
 		t.Fatalf("expected command to exit cleanly 0, got err: %v, out: %s", err, string(out))
 	}
 	output := strings.TrimSpace(string(out))
-	if !strings.HasPrefix(output, "sukami version ") {
-		t.Fatalf("expected output to start with 'sukami version ', got %q", output)
+	if output != "sukami version dev" {
+		t.Fatalf("expected 'sukami version dev', got %q", output)
 	}
 }
