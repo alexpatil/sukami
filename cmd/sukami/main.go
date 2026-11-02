@@ -24,12 +24,19 @@ func main() {
 	// 0. Parse CLI Flags (Priority: CLI Flag > Environment Variable)
 	portFlag := flag.String("port", "", "Port to run the server on (default: $PORT or 8080)")
 	upstreamFlag := flag.String("upstream", "", "Upstream LLM API endpoint (e.g. $UPSTREAM_URL)")
+	versionFlag := flag.Bool("version", false, "Print binary version and exit")
 	flag.StringVar(portFlag, "p", "", "Shorthand for --port")
+	flag.BoolVar(versionFlag, "v", false, "Shorthand for --version")
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Sukami AI Token Optimization Gateway\n\nUsage:\n  sukami [flags]\n\nFlags:\n")
 		flag.PrintDefaults()
 	}
 	flag.Parse()
+
+	if *versionFlag {
+		fmt.Printf("sukami version %s\n", api.Version)
+		return
+	}
 
 	// Optional local environment file
 	_ = config.LoadEnv(".env")

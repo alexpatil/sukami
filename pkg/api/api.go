@@ -12,7 +12,7 @@ import (
 )
 
 // Version identifies the current semantic release version of the gateway.
-const Version = "v0.3.0"
+var Version = "v0.5.0"
 
 // API orchestrates HTTP handlers for the proxy data-plane, status, and management endpoints.
 type API struct {
