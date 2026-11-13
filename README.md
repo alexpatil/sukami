@@ -208,23 +208,18 @@ UPSTREAM_API_KEY=                       # Default upstream API key fallback
 
 ## Benchmarks
 
-Workload: technical comparison (PostgreSQL vs. MongoDB).
-
-| Execution Path | Output Tokens | Latency | Finish Reason | Cost vs. Direct |
-| :--- | :---: | :---: | :---: | :---: |
-| **Direct Upstream (Raw)** | 3,072 | 7.33s | `length` (truncated) | 100% (Baseline) |
-| **Via Sukami (Pruned)** | 1,979 | 4.50s | `stop` (complete) | **~64% (−35.6%)** |
-| **Semantic Cache Hit** | 0 | < 10ms | `stop` (instant) | **0% (−100%)** |
-
-To reproduce against upstream providers:
+`cmd/sukami-bench` sends one fixed prompt directly to your upstream and through the proxy, then prints token counts and latency for each path, including a cache hit and the opt-in output density mode.
 
 ```bash
-# Set your upstream key (in .env or terminal)
-export UPSTREAM_API_KEY="your-api-key"
+# In .env or the environment
+UPSTREAM_URL=https://your-provider.example/v1
+UPSTREAM_API_KEY=your-api-key
+BENCH_MODEL=the-model-to-test
+
 go run ./cmd/sukami-bench
 ```
 
-For detailed empirical methodology, see [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
+Recorded results and how to read them are in [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
 
 ---
 
