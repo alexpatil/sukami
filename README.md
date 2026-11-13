@@ -29,7 +29,7 @@ Sukami is an open-source AI infrastructure proxy in pure Go. It prunes prompt bl
 - **Zero dependencies**: Built exclusively with the Go standard library, packaged as a single static binary.
 - **Drop-in integration**: Works with official OpenAI SDKs by changing only the `base_url`.
 - **In-memory cache**: Cosine vector similarity with semantic collision guards.
-- **Low overhead**: Pruning, cache lookup, and routing run in-process with no extra network hop. Cache hits returned in under 10ms in [our benchmark](docs/BENCHMARKS.md).
+- **Low overhead**: Pruning, cache lookup, and routing run in-process with no extra network hop.
 - **Smart routing**: Opt-in routing of simple prompts to a cheaper model on the same upstream. Complex prompts keep the model you requested.
 
 ---
