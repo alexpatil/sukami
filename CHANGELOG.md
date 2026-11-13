@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.6.1](https://github.com/alexpatil/sukami/compare/v0.6.0...v0.6.1) (2026-11-13)
+
+
+### Bug Fixes
+
+* **auth:** remove the seeded default key from the in-memory key store ([#48](https://github.com/alexpatil/sukami/issues/48)) ([81068cd](https://github.com/alexpatil/sukami/commit/81068cdc851e1c33e8702cfb9516c32d2ca2665f)), closes [#44](https://github.com/alexpatil/sukami/issues/44)
+* **bench:** measure through the proxy and report only measured numbers ([#58](https://github.com/alexpatil/sukami/issues/58)) ([34d3008](https://github.com/alexpatil/sukami/commit/34d3008b3cfc3585a76c9d69df6e7a24283a1e78)), closes [#57](https://github.com/alexpatil/sukami/issues/57)
+* **cache:** include request parameters in the cache key ([#60](https://github.com/alexpatil/sukami/issues/60)) ([d207bb2](https://github.com/alexpatil/sukami/commit/d207bb23708283a54ed664588361740769f9913e)), closes [#51](https://github.com/alexpatil/sukami/issues/51)
+* **cache:** isolate cache per caller and per conversation context ([#47](https://github.com/alexpatil/sukami/issues/47)) ([b34a903](https://github.com/alexpatil/sukami/commit/b34a903eff2f11923684bf0db3101c4e36849e8f)), closes [#43](https://github.com/alexpatil/sukami/issues/43)
+* **proxy:** forward request fields the gateway does not model ([#55](https://github.com/alexpatil/sukami/issues/55)) ([84b20bb](https://github.com/alexpatil/sukami/commit/84b20bb6923f59728f4b91f4daaac77640f05431)), closes [#52](https://github.com/alexpatil/sukami/issues/52)
+
 ## [0.6.0](https://github.com/alexpatil/sukami/compare/v0.5.0...v0.6.0) (2026-11-02)
 
 
