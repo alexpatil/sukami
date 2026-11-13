@@ -89,13 +89,10 @@ func (a *streamAccumulator) synthesizeResponse(model, reqID string, optTokens in
 		id = "chatcmpl-" + reqID
 	}
 
-	promptTokens := optTokens
-	completionTokens := optimizer.EstimateTokens(fullText)
-	totalTokens := promptTokens + completionTokens
+	usage := models.Usage{PromptTokens: optTokens, CompletionTokens: optimizer.EstimateTokens(fullText)}
+	usage.TotalTokens = usage.PromptTokens + usage.CompletionTokens
 	if a.usage != nil && a.usage.TotalTokens > 0 {
-		promptTokens = a.usage.PromptTokens
-		completionTokens = a.usage.CompletionTokens
-		totalTokens = a.usage.TotalTokens
+		usage = *a.usage
 	}
 
 	resp := models.ChatCompletionResponse{
@@ -113,11 +110,7 @@ func (a *streamAccumulator) synthesizeResponse(model, reqID string, optTokens in
 				FinishReason: finishReason,
 			},
 		},
-		Usage: models.Usage{
-			PromptTokens:     promptTokens,
-			CompletionTokens: completionTokens,
-			TotalTokens:      totalTokens,
-		},
+		Usage: usage,
 	}
 
 	data, err := json.Marshal(resp)
@@ -172,5 +165,5 @@ func (h *Handler) forwardAndCaptureStream(
 		}
 	}
 
-	h.recordMissMetric(reqID, chatReq.Model, userPrompt, comp, start, fmt.Sprintf("%d Stream", resp.StatusCode), cachedBytes)
+	h.recordMissMetric(reqID, chatReq, userPrompt, comp, start, fmt.Sprintf("%d Stream", resp.StatusCode), cachedBytes)
 }

@@ -21,6 +21,8 @@ type RequestRecord struct {
 	LatencyMs         int64     `json:"latency_ms"`
 	CostSavedUSD      float64   `json:"cost_saved_usd"`
 	Status            string    `json:"status"`
+	// Breakdown is empty for cache hits, which send nothing upstream.
+	Breakdown TokenBreakdown `json:"token_breakdown"`
 }
 
 // Summary represents aggregated operational metrics.
@@ -36,6 +38,7 @@ type Summary struct {
 	TotalBilledTokens      int64           `json:"total_billed_tokens"`
 	OverallSavingsPct      float64         `json:"overall_savings_pct"`
 	EstimatedCostSaved     float64         `json:"estimated_cost_saved_usd"`
+	TokenBreakdown         TokenBreakdown  `json:"token_breakdown"`
 	RecentRequests         []RequestRecord `json:"recent_requests"`
 }
 
@@ -51,6 +54,7 @@ type Tracker struct {
 	totalOutputSavedTokens int64
 	totalBilledTokens      int64
 	totalCostSavedUSD      float64
+	breakdown              TokenBreakdown
 	recentRequests         []RequestRecord
 	maxRecent              int
 }
@@ -83,6 +87,7 @@ func (t *Tracker) RecordRequest(record RequestRecord) {
 	t.totalInputSavedTokens += int64(record.InputSavedTokens)
 	t.totalOutputSavedTokens += int64(record.OutputSavedTokens)
 	t.totalBilledTokens += int64(record.BilledTokens)
+	t.breakdown.add(record.Breakdown)
 
 	// Calculate dynamic API cost savings if not pre-populated
 	if record.CostSavedUSD <= 0 && (record.InputSavedTokens > 0 || record.OutputSavedTokens > 0) {
@@ -130,6 +135,7 @@ func (t *Tracker) GetSummary() Summary {
 		TotalBilledTokens:      t.totalBilledTokens,
 		OverallSavingsPct:      savingsPct,
 		EstimatedCostSaved:     t.totalCostSavedUSD,
+		TokenBreakdown:         t.breakdown,
 		RecentRequests:         recentCopy,
 	}
 }

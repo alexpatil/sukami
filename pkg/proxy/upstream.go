@@ -112,5 +112,5 @@ func (h *Handler) forwardUpstream(
 		h.cache.SetSemantic(cacheKey, userPrompt, respBytes, cacheModel)
 	}
 	_, _ = w.Write(respBytes)
-	h.recordMissMetric(reqID, chatReq.Model, userPrompt, comp, start, fmt.Sprintf("%d OK", resp.StatusCode), respBytes)
+	h.recordMissMetric(reqID, chatReq, userPrompt, comp, start, fmt.Sprintf("%d OK", resp.StatusCode), respBytes)
 }

@@ -234,6 +234,9 @@ Standard Prometheus metrics are available at `GET /metrics`:
 | `sukami_cache_hit_ratio` | Gauge | Real-time semantic cache hit ratio (0.0 to 1.0) |
 | `sukami_tokens_saved_total` | Counter | Cumulative input tokens eliminated by pruning |
 | `sukami_cost_saved_usd_total` | Counter | Total USD saved computed from live model pricing |
+| `sukami_tokens_by_part_total{part}` | Counter | Tokens of forwarded requests by part: `system`, `history`, `prompt`, `tools` (the provider's prompt count split in the proportions the proxy estimates) and `upstream_prompt`, `upstream_cached_prompt`, `upstream_completion`, `upstream_reasoning` (reported by the provider) |
+
+The same breakdown is returned as `token_breakdown` by `GET /api/metrics`, in total and per recent request. It shows which part of a request the bill comes from, and how many prompt tokens the provider served from its own prompt cache.
 
 ---
 
