@@ -22,18 +22,19 @@ import (
 // 2. Server default upstreamURL
 func (h *Handler) resolveUpstreamTarget(r *http.Request) string {
 	if custom := r.Header.Get("X-Upstream-Url"); custom != "" {
-		return buildCompletionsURL(custom)
+		return CompletionsURL(custom)
 	}
 	if custom := r.Header.Get("X-Base-Url"); custom != "" {
-		return buildCompletionsURL(custom)
+		return CompletionsURL(custom)
 	}
 	if h.upstreamURL == "" {
 		return ""
 	}
-	return buildCompletionsURL(h.upstreamURL)
+	return CompletionsURL(h.upstreamURL)
 }
 
-func buildCompletionsURL(base string) string {
+// CompletionsURL appends the chat completions path to an upstream base URL when it is missing.
+func CompletionsURL(base string) string {
 	trimmed := strings.TrimRight(strings.TrimSpace(base), "/")
 	if trimmed == "" {
 		return ""
