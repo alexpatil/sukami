@@ -92,6 +92,7 @@ func (h *Handler) HandleChatCompletions(w http.ResponseWriter, r *http.Request) 
 	if density {
 		scope += "|dense"
 	}
+	scope += "|p:" + requestParamsFingerprint(chatReq)
 	exactModel := scopedCacheModel(scope, chatReq.Model)
 	cacheKey := cache.ComputeHash(exactModel, buildPromptFingerprint(comp.Messages))
 
