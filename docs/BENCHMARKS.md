@@ -25,6 +25,39 @@ What this run shows:
 
 Earlier versions of this page listed token and latency figures, percentage ranges, and dollar projections. They were removed because the old runner never sent a request through the proxy, and no record of the runs behind them exists in the repository.
 
+## Multi-turn conversation
+
+`go run ./cmd/sukami-bench -scenario chat` plays one five-turn support conversation on three paths. Every turn resends the system prompt and the whole history, as a chat client does, and the upstream's real answers become the history of the next turn.
+
+Recorded on Windows 11 with `BENCH_PAUSE=45s`, from a local build that combines this runner with the changes in #63, #65 and #67.
+
+Date: 2026-11-13. Model: `openai/gpt-oss-120b`. Upstream: `api.groq.com`. Conversation: 5 turns. Runs per path: 2.
+Each cell is the total over all turns of one conversation, as billed by the upstream: the median, with the range across runs in parentheses.
+
+| Path | Prompt tokens | of which provider-cached | Completion tokens | of which reasoning | Prompt + completion | Finish reasons |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| Direct to upstream | 11573 (10638 to 12508) | 768 (0 to 1536) | 3272 (2962 to 3583) | 493 (435 to 552) | 14845 (13600 to 16091) | `stop` |
+| Via Sukami (defaults) | 11445 (10412 to 12478) | 512 (0 to 1024) | 3105 (2647 to 3563) | 493 (437 to 550) | 14550 (13059 to 16041) | `stop` |
+| Via Sukami with X-Sukami-Density: true | 9469 (9309 to 9629) | 0 | 1929 (1782 to 2076) | 445 (369 to 521) | 11398 (11091 to 11705) | `stop` |
+
+Where the billed prompt tokens went: the upstream's prompt count for each request, split in the proportions the proxy estimates.
+
+| Path | System prompt | History (earlier turns) | New prompt | Tools |
+| :--- | :---: | :---: | :---: | :---: |
+| Via Sukami (defaults) | 6242 (6179 to 6306) | 5113 (4016 to 6211) | 89 (88 to 90) | 0 |
+| Via Sukami with X-Sukami-Density: true | 6564 (6564 to 6565) | 2814 (2654 to 2975) | 90 | 0 |
+
+What this run shows:
+
+- With default settings the proxy did not lower the bill. The proxied total (14550) and the direct total (14845) differ by less than the spread between two runs of the same path (13600 to 16091 for direct).
+- With output density on, the conversation was billed 11398 tokens against 14845 direct, 23% fewer at the medians. Completion tokens fell from 3272 to 1929. Prompt tokens fell from 11573 to 9469, although the density directive adds tokens to the system prompt, because shorter answers make a shorter history to resend on every later turn. Every answer finished with `stop` on all paths.
+- This run does not measure answer quality. Shorter answers may leave out detail a user wanted.
+- Of the prompt tokens billed for the conversation, about 55% were the system prompt resent five times and about 45% were earlier turns. The user's new messages were under 1%. Pruning filler from the user's text therefore works on the smallest part of the bill.
+- The provider's own prompt cache hit on some requests and not on others, on the direct path and through the proxy alike (0 to 1536 cached tokens per conversation). Two runs are too few to compare the paths on this. Groq documents cache hits as not guaranteed.
+- `openai/gpt-oss-120b` is a reasoning model, so completion counts include reasoning tokens.
+
+The bundled conversation is `cmd/sukami-bench/chat_scenario.json`. Set `BENCH_CHAT_FILE` to measure your own: a JSON object with a `system` string and a `turns` array of user messages. One run makes fifteen billed upstream calls with the bundled conversation.
+
 ## What the runner measures
 
 The runner starts the real chat completions handler in-process on a loopback port and sends one fixed prompt (a PostgreSQL vs MongoDB comparison) through four cases:

@@ -48,7 +48,7 @@ func (h *Handler) respondSimulated(
 
 	respJSON, _ := json.Marshal(respObj)
 	h.cache.SetSemantic(cacheKey, userPrompt, respJSON, cacheModel)
-	h.recordMissMetric(reqID, chatReq.Model, userPrompt, comp, start, "200 OK (Simulated)", respJSON)
+	h.recordMissMetric(reqID, chatReq, userPrompt, comp, start, "200 OK (Simulated)", respJSON)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("X-Cache", "MISS")
