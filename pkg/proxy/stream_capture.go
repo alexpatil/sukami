@@ -127,8 +127,8 @@ func (a *streamAccumulator) synthesizeResponse(model, reqID string, optTokens in
 	return data
 }
 
-// forwardAndCaptureStream streams SSE chunks directly to client with zero latency,
-// while accumulating delta chunks in-flight to atomically cache successful completions.
+// forwardAndCaptureStream streams SSE chunks to the client as they arrive,
+// while accumulating delta chunks to cache successful completions.
 func (h *Handler) forwardAndCaptureStream(
 	w http.ResponseWriter,
 	resp *http.Response,

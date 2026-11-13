@@ -8,7 +8,7 @@ import (
 	"sukami/pkg/models"
 )
 
-// CountExactTokens computes an accurate token count in pure Go without external dependencies.
+// CountExactTokens estimates the token count in pure Go without external dependencies.
 // - For Gemini: Google standard (1 token ~ 4 UTF-8 characters).
 // - For Code/JSON/Text: Subword, whitespace, and punctuation analysis (~1 token per 3.5-4 chars).
 func CountExactTokens(model, text string) int {

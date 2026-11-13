@@ -40,7 +40,7 @@ func (h *Handler) HandleChatCompletions(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// 1. Gateway & Tenant Authorization Check (Cloud Security Mode)
+	// Gateway and tenant authorization (cloud security mode)
 	authorized, tenant := h.validateGatewayAuth(r)
 	if !authorized {
 		writeError(w, http.StatusUnauthorized, "Unauthorized: Invalid or missing gateway API key")
@@ -54,7 +54,7 @@ func (h *Handler) HandleChatCompletions(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
-	// 2. Resolve Upstream Authorization BEFORE Cache Check (Strict Zero-Cache-Leak)
+	// Resolve upstream auth before the cache check, so unauthenticated callers never read the cache.
 	authHeader := h.resolveUpstreamAuth(r)
 	if authHeader == "" && os.Getenv("SUKAMI_DEMO_MODE") != "true" {
 		writeError(w, http.StatusUnauthorized, "Missing API key. Provide Authorization: Bearer <key> in request header or set UPSTREAM_API_KEY environment variable.")
@@ -64,9 +64,7 @@ func (h *Handler) HandleChatCompletions(w http.ResponseWriter, r *http.Request) 
 	clientKey := resolveSukamiKey(r)
 	userPrompt := extractUserPrompt(chatReq.Messages)
 
-	// Smart Prompt Complexity Model Router:
-	// Automatically downgrade simple queries to economy tier (e.g. gpt-4o-mini) when enabled,
-	// saving up to 95% in token costs, while preserving flagship models for complex code & math.
+	// Smart routing sends simple prompts to an economy model when enabled.
 	if r.Header.Get("X-Sukami-Smart-Route") == "true" || r.Header.Get("X-Sukami-Smart-Route") == "auto" || os.Getenv("ENABLE_SMART_ROUTING") == "true" {
 		classification := optimizer.ClassifyPromptComplexity(userPrompt)
 		targetURL := h.resolveUpstreamTarget(r)
@@ -79,7 +77,7 @@ func (h *Handler) HandleChatCompletions(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
-	// 3. Optimize input messages using model-specific token rules
+	// Optimize input messages using model-specific token rules
 	comp := optimizer.OptimizeMessagesForModel(chatReq.Model, chatReq.Messages)
 	if clientKey != "" {
 		h.authStore.RecordTokenUsage(clientKey, comp.OptimizedTokens, comp.SavedTokens)
@@ -117,7 +115,7 @@ func (h *Handler) HandleChatCompletions(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// 6. Forward upstream to resolved provider target
+	// Forward upstream to resolved provider target
 	h.forwardUpstream(w, r, chatReq, comp, cacheKey, cacheModel, reqID, userPrompt, authHeader, start)
 }
 

@@ -87,11 +87,11 @@ func parseRetryAfter(h http.Header) (time.Duration, bool) {
 	if val == "" {
 		return 0, false
 	}
-	// Case 1: integer seconds
+	// Integer seconds
 	if sec, err := strconv.Atoi(val); err == nil && sec >= 0 {
 		return time.Duration(sec) * time.Second, true
 	}
-	// Case 2: HTTP date
+	// HTTP date
 	if t, err := http.ParseTime(val); err == nil {
 		d := time.Until(t)
 		if d > 0 {

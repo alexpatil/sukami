@@ -38,7 +38,7 @@ var reasoningKeywords = []string{
 	"security vulnerability", "optimize algorithm", "time complexity", "o(n",
 }
 
-// ClassifyPromptComplexity analyzes lexical and syntactic signals in sub-millisecond time.
+// ClassifyPromptComplexity analyzes lexical and syntactic signals in-process.
 func ClassifyPromptComplexity(prompt string) ClassificationResult {
 	trimmed := strings.TrimSpace(prompt)
 	if len(trimmed) == 0 {
@@ -51,17 +51,17 @@ func ClassifyPromptComplexity(prompt string) ClassificationResult {
 
 	var signals []string
 
-	// 1. Check for explicit code blocks or backtick expressions
+	// Explicit code blocks or backtick expressions
 	if classifierCodeBlockRegex.MatchString(trimmed) {
 		signals = append(signals, "code_block")
 	}
 
-	// 2. Check for stack traces or runtime crash errors
+	// Stack traces or runtime crash errors
 	if stackTraceRegex.MatchString(trimmed) {
 		signals = append(signals, "stack_trace")
 	}
 
-	// 3. Check for programming keywords (low-cased check)
+	// Programming keywords (low-cased check)
 	lower := strings.ToLower(trimmed)
 	for _, kw := range codeKeywords {
 		if strings.Contains(lower, strings.ToLower(kw)) {
@@ -70,7 +70,7 @@ func ClassifyPromptComplexity(prompt string) ClassificationResult {
 		}
 	}
 
-	// 4. Check for deep analytical / reasoning requirements
+	// Deep analytical / reasoning requirements
 	for _, rw := range reasoningKeywords {
 		if strings.Contains(lower, rw) {
 			signals = append(signals, "reasoning:"+strings.TrimSpace(rw))
@@ -78,12 +78,11 @@ func ClassifyPromptComplexity(prompt string) ClassificationResult {
 		}
 	}
 
-	// 5. Check prompt length (> 2000 characters ~ 500+ tokens)
+	// Prompt length (> 2000 characters ~ 500+ tokens)
 	if len(trimmed) > 2000 {
 		signals = append(signals, "long_context")
 	}
 
-	// Decision Engine
 	if len(signals) > 0 {
 		return ClassificationResult{
 			Tier:    TierFlagship,

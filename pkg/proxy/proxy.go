@@ -16,7 +16,7 @@ import (
 	"time"
 )
 
-// Cache defines the contract for caching responses (SOLID: Interface Segregation).
+// Cache defines the contract for caching responses.
 type Cache interface {
 	Get(key string) ([]byte, bool)
 	GetSemantic(model, prompt string, threshold float64) ([]byte, bool, float64)
@@ -24,7 +24,7 @@ type Cache interface {
 	SetSemantic(key, prompt string, response []byte, model string)
 }
 
-// RequestTracker defines the contract for operational metrics (SOLID: Dependency Inversion).
+// RequestTracker defines the contract for operational metrics.
 type RequestTracker interface {
 	RecordRequest(record metrics.RequestRecord)
 	GetSummary() metrics.Summary
