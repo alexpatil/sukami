@@ -162,7 +162,11 @@ func (h *Handler) forwardAndCaptureStream(
 
 	var cachedBytes []byte
 	if resp.StatusCode == http.StatusOK {
-		if synthesized := acc.synthesizeResponse(cacheModel, reqID, comp.OptimizedTokens); synthesized != nil {
+		model := acc.model
+		if model == "" {
+			model = chatReq.Model
+		}
+		if synthesized := acc.synthesizeResponse(model, reqID, comp.OptimizedTokens); synthesized != nil {
 			h.cache.SetSemantic(cacheKey, userPrompt, synthesized, cacheModel)
 			cachedBytes = synthesized
 		}

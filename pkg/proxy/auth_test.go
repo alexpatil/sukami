@@ -75,11 +75,6 @@ func TestCloudSecurity_ZeroCacheLeak_RejectBeforeCache(t *testing.T) {
 	h, _, _ := setupTestHandler()
 
 	prompt := "What is the capital of France?"
-	cacheModel := "pub|gpt-4o"
-	simulatedCachedResponse := []byte(`{"id":"chatcmpl-cached","choices":[{"message":{"content":"Paris."},"finish_reason":"stop"}],"usage":{"prompt_tokens":10,"completion_tokens":2,"total_tokens":12}}`)
-	h.cache.SetSemantic("dummy_key", prompt, simulatedCachedResponse, cacheModel)
-
-	// Send request with NO API KEY
 	chatReq := models.ChatCompletionRequest{
 		Model: "gpt-4o",
 		Messages: []models.ChatMessage{
@@ -87,14 +82,31 @@ func TestCloudSecurity_ZeroCacheLeak_RejectBeforeCache(t *testing.T) {
 		},
 	}
 	body, _ := json.Marshal(chatReq)
-	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", bytes.NewReader(body))
-	rec := httptest.NewRecorder()
+	newReq := func() *http.Request {
+		return httptest.NewRequest(http.MethodPost, "/v1/chat/completions", bytes.NewReader(body))
+	}
 
-	h.HandleChatCompletions(rec, req)
+	// Seed the entry under the scope an unauthenticated caller would resolve to.
+	scope := cacheScope("", "", h.resolveUpstreamTarget(newReq()))
+	cacheModel := scopedCacheModel(scope, chatReq.Model) + "|ctx:" + buildContextFingerprint(chatReq.Messages)
+	simulatedCachedResponse := []byte(`{"id":"chatcmpl-cached","choices":[{"message":{"content":"Paris."},"finish_reason":"stop"}],"usage":{"prompt_tokens":10,"completion_tokens":2,"total_tokens":12}}`)
+	h.cache.SetSemantic("dummy_key", prompt, simulatedCachedResponse, cacheModel)
+
+	rec := httptest.NewRecorder()
+	h.HandleChatCompletions(rec, newReq())
 
 	// MUST be 401 Unauthorized. Cache MUST NOT be leaked to unauthenticated caller!
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("expected 401 Unauthorized for unauthenticated request on cached item, got %d (BODY: %s)", rec.Code, rec.Body.String())
+	}
+
+	// Demo mode lets the same request through, which proves the seeded entry was reachable.
+	os.Setenv("SUKAMI_DEMO_MODE", "true")
+	defer os.Unsetenv("SUKAMI_DEMO_MODE")
+	rec = httptest.NewRecorder()
+	h.HandleChatCompletions(rec, newReq())
+	if rec.Header().Get("X-Cache") != "HIT" {
+		t.Fatalf("seeded entry is not under the scope the handler uses, got X-Cache=%q", rec.Header().Get("X-Cache"))
 	}
 }
 
