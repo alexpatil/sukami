@@ -115,6 +115,14 @@ func extractUserPrompt(messages []models.ChatMessage) string {
 	return ""
 }
 
+// requestParamsFingerprint hashes the request fields that shape the completion.
+// Model and messages are keyed separately; stream, stream_options and user do not change the content.
+func requestParamsFingerprint(req models.ChatCompletionRequest) string {
+	req.Model, req.Messages, req.Stream, req.StreamOptions, req.User = "", nil, false, nil, ""
+	b, _ := json.Marshal(req)
+	return shortHash(string(b))
+}
+
 // buildContextFingerprint hashes every message except the last user message.
 func buildContextFingerprint(messages []models.ChatMessage) string {
 	last := -1
