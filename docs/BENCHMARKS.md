@@ -4,7 +4,24 @@ This page reports only what `cmd/sukami-bench` measured in a recorded run. It ma
 
 ## Results
 
-No run has been recorded with the current runner yet. Run it as described below and paste its output here, together with the commit it ran on.
+Recorded with the runner at commit `a07df82`, on Windows 11, with `BENCH_PAUSE=40s`.
+
+Date: 2026-11-13. Model: `openai/gpt-oss-120b`. Upstream: `api.groq.com`. Runs per case: 3.
+Cells show the median, with the range across runs in parentheses.
+
+| Case | Prompt tokens | Completion tokens | Latency | Finish reasons |
+| :--- | :---: | :---: | :---: | :---: |
+| Direct to upstream | 181 | 3072 | 7.00s (6.99s to 7.22s) | `length` |
+| Via Sukami (defaults) | 181 | 3072 | 7.39s (7.08s to 8.20s) | `length` |
+| Via Sukami, same request again (cache hit) | 181 | 3072 | 0µs (0µs to 737µs) | `length` |
+| Via Sukami with X-Sukami-Density: true | 246 | 1864 (1575 to 2277) | 4.65s (3.94s to 5.85s) | `stop` |
+
+What this run shows:
+
+- With default settings the proxy changed nothing about this request. The upstream billed the same 181 prompt tokens, because the prompt has no filler for the pruner to remove. The 0.39s difference in median latency is inside the spread of the proxied runs (7.08s to 8.20s), so three runs do not separate proxy overhead from upstream variance.
+- A cache hit returned in under one millisecond without calling the upstream. The `0µs` cells mean the request finished below the resolution of the Windows system clock, not in zero time.
+- The direct answer was cut off at the upstream's 3072-token output limit in every run. With output density on, the answer finished on its own at a median of 1864 completion tokens, for 65 extra prompt tokens. Because the baseline is truncated, this run cannot say how many tokens density saves against a complete baseline answer.
+- `openai/gpt-oss-120b` is a reasoning model, so its completion token counts include reasoning tokens.
 
 Earlier versions of this page listed token and latency figures, percentage ranges, and dollar projections. They were removed because the old runner never sent a request through the proxy, and no record of the runs behind them exists in the repository.
 
