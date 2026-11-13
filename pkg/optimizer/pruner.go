@@ -12,8 +12,6 @@ import (
 var (
 	// Regex to isolate markdown code blocks (closed and unclosed) so they are NOT pruned.
 	codeBlockRegex = regexp.MustCompile("(?s)```(?:.*?```|.*)|`.*?`")
-	// Multiple spaces or tabs into a single space.
-	multiSpaceRegex = regexp.MustCompile(`[ \t]{2,}`)
 	// More than two consecutive newlines into double newlines.
 	multiNewlineRegex = regexp.MustCompile(`\n{3,}`)
 	// Common polite/filler prefixes that burn prompt tokens without providing instruction value.
@@ -66,7 +64,9 @@ func EstimateMessagesTokensForModel(model string, messages []models.ChatMessage)
 	return CountExactMessagesTokens(model, messages)
 }
 
-// PruneText compresses prompt text without corrupting code or essential semantics.
+// PruneText removes text that carries no instruction: a polite prefix at the very start of the prompt,
+// trailing whitespace, and runs of blank lines. Indentation and spacing inside a line are kept, because
+// they carry meaning in code, YAML and tables that are pasted without a fence.
 func PruneText(input string) string {
 	if len(input) == 0 {
 		return input
@@ -82,27 +82,13 @@ func PruneText(input string) string {
 		return fmt.Sprintf("\x1fSUKAMI_%d_%d\x1f", seed, idx)
 	})
 
-	// Remove leading conversational filler from lines and sentences
 	lines := strings.Split(cleanText, "\n")
 	for i, line := range lines {
-		line = stripFillerPrefix(line)
-		for _, sep := range []string{"? ", ". ", "! "} {
-			parts := strings.Split(line, sep)
-			if len(parts) > 1 {
-				for j := 1; j < len(parts); j++ {
-					parts[j] = stripFillerPrefix(parts[j])
-				}
-				line = strings.Join(parts, sep)
-			}
-		}
-		lines[i] = line
+		lines[i] = strings.TrimRight(line, " \t")
 	}
-	cleanText = strings.Join(lines, "\n")
-
-	// Collapse whitespace and extra newlines
-	cleanText = multiSpaceRegex.ReplaceAllString(cleanText, " ")
+	cleanText = strings.Trim(strings.Join(lines, "\n"), "\n")
 	cleanText = multiNewlineRegex.ReplaceAllString(cleanText, "\n\n")
-	cleanText = strings.TrimSpace(cleanText)
+	cleanText = stripFillerPrefix(cleanText)
 
 	// Restore preserved code blocks intact
 	for idx, block := range preservedBlocks {
@@ -119,14 +105,14 @@ func OptimizeMessages(messages []models.ChatMessage) CompressionResult {
 }
 
 // OptimizeMessagesForModel processes the slice of chat messages using model-specific token rules.
-// Multimodal messages (image arrays) are passed through untouched; system prompts are preserved intact.
+// Only text written by the user is pruned; system, assistant, tool and multimodal messages pass through untouched.
 func OptimizeMessagesForModel(model string, messages []models.ChatMessage) CompressionResult {
 	origTokens := EstimateMessagesTokensForModel(model, messages)
 
 	optimized := make([]models.ChatMessage, len(messages))
 	for i, msg := range messages {
 		optimized[i] = msg // Copy all fields including passthrough (ToolCalls, RawContent, etc.)
-		if msg.Role != "system" && models.IsTextContent(msg.RawContent) {
+		if msg.Role == "user" && models.IsTextContent(msg.RawContent) {
 			optimized[i].Content = PruneText(msg.Content)
 			optimized[i].RawContent = nil // Force marshal to use pruned text Content
 		}
@@ -153,19 +139,18 @@ func OptimizeMessagesForModel(model string, messages []models.ChatMessage) Compr
 	}
 }
 
+// stripFillerPrefix drops one polite prefix from the start of the prompt. Text that starts with
+// whitespace is left alone, since an indented first line is more likely pasted content than a request.
 func stripFillerPrefix(s string) string {
-	trimmed := strings.TrimSpace(s)
-	lower := strings.ToLower(trimmed)
+	lower := strings.ToLower(s)
 	for _, filler := range fillerPrefixes {
 		if strings.HasPrefix(lower, filler) {
-			trimmed = trimmed[len(filler):]
-			if len(trimmed) > 0 {
-				runes := []rune(trimmed)
-				runes[0] = unicode.ToUpper(runes[0])
-				trimmed = string(runes)
+			rest := []rune(s[len(filler):])
+			if len(rest) > 0 {
+				rest[0] = unicode.ToUpper(rest[0])
 			}
-			break
+			return string(rest)
 		}
 	}
-	return trimmed
+	return s
 }
