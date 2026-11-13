@@ -28,7 +28,7 @@ Sukami is an open-source AI infrastructure proxy in pure Go. It prunes prompt bl
 
 - **Zero dependencies**: Built exclusively with the Go standard library, packaged as a single static binary.
 - **Drop-in integration**: Works with official OpenAI SDKs by changing only the `base_url`.
-- **In-memory cache**: Exact-match response cache. Lexical similarity matching is opt-in.
+- **In-memory cache**: Exact-match response cache for repeated requests.
 - **Low overhead**: Pruning, cache lookup, and routing run in-process with no extra network hop.
 - **Smart routing**: Opt-in routing of simple prompts to a cheaper model on the same upstream. Complex prompts keep the model you requested.
 
@@ -146,7 +146,7 @@ Client Request (OpenAI SDK / cURL)
              │
              ▼
 ┌─────────────────────────────┐
-│       Response Cache        │  Exact match; lexical similarity is opt-in
+│       Response Cache        │  Exact match on the full request
 └────────────┬────────────────┘
              │ miss
              ▼
@@ -168,7 +168,7 @@ For complete technical specifications, see [docs/ARCHITECTURE.md](docs/ARCHITECT
 
 - **Prompt pruning**: Strips conversational filler and redundant whitespace. Code blocks and markdown indentation are unconditionally preserved.
 - **In-memory cache**: Serves a stored response when the same request is sent again. Matching ignores letter case and trailing punctuation.
-- **Similarity matching (opt-in)**: With `ENABLE_SIMILARITY_CACHE=true` or the header `X-Sukami-Similarity: true`, a prompt that shares most of its words with a stored prompt is also served from the cache (word-count cosine above 0.85). It is off by default because it compares which words appear, not their order: on the PAWS test set it served the stored answer for 97.54% of pairs labelled as different in meaning. See [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
+- **No similarity matching**: An earlier version also served cached answers for prompts that shared most of their words with a stored prompt. That matcher compares which words appear, not their order, and on the PAWS test set it served the stored answer for 97.54% of pairs labelled as different in meaning, so the proxy no longer uses it. See [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
 - **Automatic retries on transient errors**: Transparently retries transient rate limits (`HTTP 429`) and server overloads (`502`, `503`, `504`) with jittered exponential backoff and `Retry-After` header respect. Configurable via `UPSTREAM_MAX_RETRIES` or per-request with `X-Sukami-Max-Retries`.
 - **Smart model routing (opt-in)**: Evaluates prompt complexity in-process without external API calls. Routes simple queries to economy models while preserving flagship models for complex code and multi-step reasoning.
 - **Cloud security mode**: Set `SUKAMI_API_KEY` to protect the proxy on public networks. Rejects unauthenticated callers before cache access to prevent unauthorized cache inspection.
@@ -197,7 +197,6 @@ SUKAMI_API_KEY=                         # Master gateway key. Rejects unauthenti
 # Dynamic Optimization (can also be toggled per-request via headers)
 ENABLE_SMART_ROUTING=false              # Route simple queries to economy models (header: X-Sukami-Smart-Route: true)
 ENABLE_OUTPUT_DENSITY=false             # Inject anti-fluff instructions into prompts (header: X-Sukami-Density: true)
-ENABLE_SIMILARITY_CACHE=false           # Also serve cached answers for lexically similar prompts (header: X-Sukami-Similarity: true)
 
 # Resilience & Retries (optional)
 UPSTREAM_MAX_RETRIES=2                  # Max retries for transient 429/502/503/504 errors (header: X-Sukami-Max-Retries)

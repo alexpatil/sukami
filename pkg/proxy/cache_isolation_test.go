@@ -81,75 +81,46 @@ func TestCache_IsolatedPerUpstreamKey(t *testing.T) {
 	}
 }
 
-func TestCache_SimilarityRespectsSystemPrompt(t *testing.T) {
+func TestCache_SystemPromptIsPartOfTheKey(t *testing.T) {
 	var calls int64
 	up := echoUpstream(&calls)
 	defer up.Close()
 	h, _ := createTestStreamHandler(up.URL)
 
 	ask := userMsg("Explain how database indexing works in detail")
-	isoReq{auth: "sk-same", headers: similarityOn, msgs: []models.ChatMessage{{Role: "system", Content: "Always reply in French."}, ask}}.send(h)
-	second := isoReq{auth: "sk-same", headers: similarityOn, msgs: []models.ChatMessage{{Role: "system", Content: "Always reply in Hindi."}, ask}}.send(h).Body.String()
+	isoReq{auth: "sk-same", msgs: []models.ChatMessage{{Role: "system", Content: "Always reply in French."}, ask}}.send(h)
+	second := isoReq{auth: "sk-same", msgs: []models.ChatMessage{{Role: "system", Content: "Always reply in Hindi."}, ask}}.send(h).Body.String()
 
 	if strings.Contains(second, "French") || calls != 2 {
 		t.Errorf("Hindi request was served the cached French answer (upstream calls=%d): %s", calls, second)
 	}
 }
 
-// rewordedPrompts are one prompt, the same prompt with different case and punctuation, and a reordering of it.
-var rewordedPrompts = []string{
-	"Explain how database indexing works in detail",
-	"explain how database indexing works in detail?",
-	"Explain in detail how database indexing works",
-}
+func TestCache_OnlyExactRepeatsAreServed(t *testing.T) {
+	var calls int64
+	up := echoUpstream(&calls)
+	defer up.Close()
+	h, _ := createTestStreamHandler(up.URL)
 
-var similarityOn = map[string]string{"X-Sukami-Similarity": "true"}
-
-func sendReworded(h *Handler, headers map[string]string) {
 	sys := models.ChatMessage{Role: "system", Content: "You are a helpful assistant."}
-	for _, p := range rewordedPrompts {
-		isoReq{auth: "sk-same", headers: headers, msgs: []models.ChatMessage{sys, userMsg(p)}}.send(h)
+	send := func(prompt string) string {
+		return isoReq{auth: "sk-same", msgs: []models.ChatMessage{sys, userMsg(prompt)}}.send(h).Header().Get("X-Cache")
 	}
-}
 
-func TestCache_SimilarityIsOffByDefault(t *testing.T) {
-	var calls int64
-	up := echoUpstream(&calls)
-	defer up.Close()
-	h, _ := createTestStreamHandler(up.URL)
-
-	sendReworded(h, nil)
-
-	// Case and trailing punctuation still match exactly; the reordered prompt must reach the upstream.
-	if calls != 2 {
-		t.Errorf("expected 2 upstream calls with similarity off, got %d", calls)
+	send("Explain how database indexing works in detail")
+	if got := send("explain how database indexing works in detail?"); got != "HIT" {
+		t.Errorf("the same prompt in different case and punctuation should be served from cache, got X-Cache=%q", got)
 	}
-}
-
-func TestCache_SimilarityOptInByHeader(t *testing.T) {
-	var calls int64
-	up := echoUpstream(&calls)
-	defer up.Close()
-	h, _ := createTestStreamHandler(up.URL)
-
-	sendReworded(h, similarityOn)
-
-	if calls != 1 {
-		t.Errorf("expected 1 upstream call (rest served from cache), got %d", calls)
+	if got := send("Explain in detail how database indexing works"); got == "HIT" {
+		t.Errorf("a reordered prompt must reach the upstream, got X-Cache=%q", got)
 	}
-}
-
-func TestCache_SimilarityOptInByEnvironment(t *testing.T) {
-	t.Setenv("ENABLE_SIMILARITY_CACHE", "true")
-	var calls int64
-	up := echoUpstream(&calls)
-	defer up.Close()
-	h, _ := createTestStreamHandler(up.URL)
-
-	sendReworded(h, nil)
-
-	if calls != 1 {
-		t.Errorf("expected 1 upstream call (rest served from cache), got %d", calls)
+	// Same words, opposite meaning: the old similarity match served the first answer for this.
+	send("Convert a string to an integer in Python")
+	if got := send("Convert an integer to a string in Python"); got == "HIT" {
+		t.Errorf("a prompt with swapped words must reach the upstream, got X-Cache=%q", got)
+	}
+	if calls != 4 {
+		t.Errorf("expected 4 upstream calls, got %d", calls)
 	}
 }
 

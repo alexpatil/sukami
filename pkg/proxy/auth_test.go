@@ -6,7 +6,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"sukami/pkg/cache"
 	"sukami/pkg/models"
+	"sukami/pkg/optimizer"
 	"testing"
 )
 
@@ -83,16 +85,16 @@ func TestCloudSecurity_ZeroCacheLeak_RejectBeforeCache(t *testing.T) {
 	}
 	body, _ := json.Marshal(chatReq)
 	newReq := func() *http.Request {
-		req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", bytes.NewReader(body))
-		req.Header.Set("X-Sukami-Similarity", "true") // the entry below is seeded on the similarity path
-		return req
+		return httptest.NewRequest(http.MethodPost, "/v1/chat/completions", bytes.NewReader(body))
 	}
 
 	// Seed the entry under the scope an unauthenticated caller would resolve to.
 	scope := cacheScope("", "", h.resolveUpstreamTarget(newReq())) + "|p:" + requestParamsFingerprint(chatReq)
-	cacheModel := scopedCacheModel(scope, chatReq.Model) + "|ctx:" + buildContextFingerprint(chatReq.Messages)
+	exactModel := scopedCacheModel(scope, chatReq.Model)
+	pruned := optimizer.OptimizeMessagesForModel(chatReq.Model, chatReq.Messages).Messages
+	cacheKey := cache.ComputeHash(exactModel, buildPromptFingerprint(pruned))
 	simulatedCachedResponse := []byte(`{"id":"chatcmpl-cached","choices":[{"message":{"content":"Paris."},"finish_reason":"stop"}],"usage":{"prompt_tokens":10,"completion_tokens":2,"total_tokens":12}}`)
-	h.cache.SetSemantic("dummy_key", prompt, simulatedCachedResponse, cacheModel)
+	h.cache.Set(cacheKey, simulatedCachedResponse, exactModel)
 
 	rec := httptest.NewRecorder()
 	h.HandleChatCompletions(rec, newReq())
