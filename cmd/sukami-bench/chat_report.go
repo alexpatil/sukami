@@ -50,7 +50,7 @@ func renderChatReport(cfg benchConfig, turns int, results map[string][]chatTotal
 			strings.Join(finishes, "`, `"))
 	}
 
-	sb.WriteString("\nWhere the input went, as estimated by the proxy for the requests it forwarded:\n\n")
+	sb.WriteString("\nWhere the billed prompt tokens went: the upstream's prompt count for each request, split in the proportions the proxy estimates.\n\n")
 	sb.WriteString("| Path | System prompt | History (earlier turns) | New prompt | Tools |\n")
 	sb.WriteString("| :--- | :---: | :---: | :---: | :---: |\n")
 	for _, name := range chatOrder[1:] {
