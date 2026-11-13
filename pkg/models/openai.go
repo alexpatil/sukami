@@ -20,7 +20,7 @@ type chatAlias struct {
 // Content holds extracted text for internal processing; RawContent preserves original format.
 type ChatMessage struct {
 	Role             string
-	Content          string          // Extracted text for pruning, caching, token counting
+	Content          string // Extracted text for pruning, caching, token counting
 	Name             string
 	RawContent       json.RawMessage // Original content (string or array) for upstream passthrough
 	ToolCalls        json.RawMessage
@@ -115,6 +115,8 @@ type ChatCompletionRequest struct {
 	LogProbs       *bool           `json:"logprobs,omitempty"`
 	TopLogProbs    *int            `json:"top_logprobs,omitempty"`
 	StreamOptions  json.RawMessage `json:"stream_options,omitempty"`
+	// Extra holds request fields not declared above so they are forwarded unchanged.
+	Extra map[string]json.RawMessage `json:"-"`
 }
 
 // ChatChoice represents a choice returned by OpenAI.
