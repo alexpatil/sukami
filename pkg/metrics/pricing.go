@@ -21,7 +21,7 @@ type ModelRate struct {
 }
 
 // PricingRegistry manages live-fetched and user-configured model rates in memory.
-// There are ZERO hardcoded model rates; all values are retrieved dynamically via API or user config.
+// No model rate is hardcoded; all values come from the API or user config.
 type PricingRegistry struct {
 	mu          sync.RWMutex
 	liveRates   map[string]ModelRate

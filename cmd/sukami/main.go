@@ -21,7 +21,7 @@ import (
 )
 
 func main() {
-	// 0. Parse CLI Flags (Priority: CLI Flag > Environment Variable)
+	// CLI flags take priority over environment variables.
 	portFlag := flag.String("port", "", "Port to run the server on (default: $PORT or 8080)")
 	upstreamFlag := flag.String("upstream", "", "Upstream LLM API endpoint (e.g. $UPSTREAM_URL)")
 	versionFlag := flag.Bool("version", false, "Print binary version and exit")
@@ -41,7 +41,6 @@ func main() {
 	// Optional local environment file
 	_ = config.LoadEnv(".env")
 
-	// 1. Initialize structured logging
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		Level: slog.LevelInfo,
 	}))
@@ -65,7 +64,6 @@ func main() {
 		slog.Warn("⚠️ No default UPSTREAM_URL configured. Incoming requests must provide X-Upstream-Url header.")
 	}
 
-	// 2. Initialize Core Subsystems
 	memoryCache := cache.NewMemoryCache(1 * time.Hour)
 	tracker := metrics.NewTracker(50)
 	authStore := auth.NewMemoryKeyStore()
@@ -80,7 +78,7 @@ func main() {
 		slog.Info("🔒 Cloud Security Mode: Master authentication active")
 	}
 
-	// Fetch live model pricing dynamically from pricing API on boot (zero hardcoding)
+	// Model pricing is fetched from the pricing API at boot.
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
@@ -91,7 +89,6 @@ func main() {
 		}
 	}()
 
-	// 3. Initialize HTTP API Service
 	apiServer := api.New(proxyHandler, tracker, authStore, masterKey)
 
 	httpServer := &http.Server{
@@ -103,7 +100,7 @@ func main() {
 		IdleTimeout:       120 * time.Second,
 	}
 
-	// 4. Graceful Shutdown Listener
+	// Graceful shutdown listener
 	stopChan := make(chan os.Signal, 1)
 	signal.Notify(stopChan, os.Interrupt, syscall.SIGTERM)
 

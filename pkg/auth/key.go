@@ -20,7 +20,7 @@ type APIKey struct {
 	TokensSaved     int64     `json:"tokens_saved"`
 }
 
-// KeyStore defines the contract for managing API keys and rate limits (SOLID).
+// KeyStore defines the contract for managing API keys and rate limits.
 type KeyStore interface {
 	Validate(key string) (*APIKey, bool)
 	CreateKey(name, tier string) (*APIKey, error)

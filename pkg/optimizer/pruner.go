@@ -58,7 +58,7 @@ func EstimateMessagesTokens(messages []models.ChatMessage) int {
 	return EstimateMessagesTokensForModel("gpt-4o", messages)
 }
 
-// EstimateMessagesTokensForModel computes exact token count using model-specific tokenization rules.
+// EstimateMessagesTokensForModel estimates token count using model-specific tokenization rules.
 func EstimateMessagesTokensForModel(model string, messages []models.ChatMessage) int {
 	if model == "" {
 		model = "gpt-4o"
@@ -72,7 +72,7 @@ func PruneText(input string) string {
 		return input
 	}
 
-	// Step 1: Protect code blocks using collision-proof placeholders
+	// Protect code blocks using collision-proof placeholders
 	seed := time.Now().UnixNano()
 	var preservedBlocks []string
 
@@ -82,7 +82,7 @@ func PruneText(input string) string {
 		return fmt.Sprintf("\x1fSUKAMI_%d_%d\x1f", seed, idx)
 	})
 
-	// Step 2: Remove leading conversational filler from lines and sentences
+	// Remove leading conversational filler from lines and sentences
 	lines := strings.Split(cleanText, "\n")
 	for i, line := range lines {
 		line = stripFillerPrefix(line)
@@ -99,12 +99,12 @@ func PruneText(input string) string {
 	}
 	cleanText = strings.Join(lines, "\n")
 
-	// Step 3: Collapse whitespace and extra newlines
+	// Collapse whitespace and extra newlines
 	cleanText = multiSpaceRegex.ReplaceAllString(cleanText, " ")
 	cleanText = multiNewlineRegex.ReplaceAllString(cleanText, "\n\n")
 	cleanText = strings.TrimSpace(cleanText)
 
-	// Step 4: Restore preserved code blocks intact
+	// Restore preserved code blocks intact
 	for idx, block := range preservedBlocks {
 		placeholder := fmt.Sprintf("\x1fSUKAMI_%d_%d\x1f", seed, idx)
 		cleanText = strings.Replace(cleanText, placeholder, block, 1)

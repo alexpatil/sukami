@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-// respondSimulated sends an intelligent simulated response when no API key is provided.
+// respondSimulated sends a simulated response when no API key is provided.
 func (h *Handler) respondSimulated(
 	w http.ResponseWriter,
 	r *http.Request,

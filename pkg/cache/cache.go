@@ -20,7 +20,7 @@ type CacheEntry struct {
 	Model        string
 }
 
-// MemoryCache is a high-performance in-memory cache supporting semantic similarity.
+// MemoryCache is an in-memory cache supporting semantic similarity.
 type MemoryCache struct {
 	mu         sync.RWMutex
 	entries    map[string]*CacheEntry
@@ -82,7 +82,7 @@ func (c *MemoryCache) Get(key string) ([]byte, bool) {
 	return entry.ResponseJSON, true
 }
 
-// GetSemantic looks up responses using exact hash first, then parallel cosine similarity matching.
+// GetSemantic looks up responses using exact hash first, then cosine similarity matching.
 func (c *MemoryCache) GetSemantic(model, prompt string, threshold float64) ([]byte, bool, float64) {
 	exactKey := ComputeHash(model, prompt)
 	if data, ok := c.Get(exactKey); ok {

@@ -10,7 +10,7 @@ type bucket struct {
 	lastRefill time.Time
 }
 
-// RateLimiter implements a high-performance token-bucket algorithm using pure Go stdlib.
+// RateLimiter implements a token-bucket algorithm using only the standard library.
 type RateLimiter struct {
 	mu      sync.Mutex
 	buckets map[string]*bucket
@@ -56,7 +56,6 @@ func (rl *RateLimiter) Allow(key string, limitPerMin int) bool {
 	}
 	b.lastRefill = now
 
-	// Check if enough tokens available
 	if b.tokens >= 1.0 {
 		b.tokens -= 1.0
 		return true

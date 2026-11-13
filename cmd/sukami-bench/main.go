@@ -41,7 +41,7 @@ Provide an executive, thorough, and definitive report concluding with a clear su
 	fmt.Printf("🚀 Starting Real Benchmark on Model: %s\n", modelName)
 	fmt.Printf("Input Prompt: %d chars (~%d tokens)\n\n", len(largePrompt), optimizer.EstimateTokens(largePrompt))
 
-	// 1. Raw Call
+	// Raw call
 	fmt.Println("⏳ [Test 1] Running RAW Call (Without Sukami)...")
 	start1 := time.Now()
 	rawResp, rawOutput, rawFinish, err := callAPI(upstreamURL, apiKey, modelName, []models.ChatMessage{{Role: "user", Content: largePrompt}})
@@ -51,7 +51,7 @@ Provide an executive, thorough, and definitive report concluding with a clear su
 		return
 	}
 
-	// 2. Sukami Optimized Call
+	// Sukami optimized call
 	fmt.Println("⏳ [Test 2] Running SUKAMI Optimized Call...")
 	optMsgs, _ := optimizer.ApplyOutputOptimization([]models.ChatMessage{{Role: "user", Content: largePrompt}})
 	start2 := time.Now()

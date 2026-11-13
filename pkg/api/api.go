@@ -11,8 +11,7 @@ import (
 	"time"
 )
 
-// Version identifies the current semantic release version of the gateway.
-// Version identifies the running release version of the gateway, injected dynamically at build time via -ldflags.
+// Version is the release version of the gateway, injected at build time via -ldflags.
 var Version = "dev"
 
 // API orchestrates HTTP handlers for the proxy data-plane, status, and management endpoints.
