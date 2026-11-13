@@ -81,7 +81,7 @@ func TestCache_IsolatedPerUpstreamKey(t *testing.T) {
 	}
 }
 
-func TestCache_SimilarityRespectsSystemPrompt(t *testing.T) {
+func TestCache_SystemPromptIsPartOfTheKey(t *testing.T) {
 	var calls int64
 	up := echoUpstream(&calls)
 	defer up.Close()
@@ -96,23 +96,31 @@ func TestCache_SimilarityRespectsSystemPrompt(t *testing.T) {
 	}
 }
 
-func TestCache_SameCallerSameContextStillHits(t *testing.T) {
+func TestCache_OnlyExactRepeatsAreServed(t *testing.T) {
 	var calls int64
 	up := echoUpstream(&calls)
 	defer up.Close()
 	h, _ := createTestStreamHandler(up.URL)
 
 	sys := models.ChatMessage{Role: "system", Content: "You are a helpful assistant."}
-	for _, p := range []string{
-		"Explain how database indexing works in detail",
-		"explain how database indexing works in detail?",
-		"Explain in detail how database indexing works",
-	} {
-		isoReq{auth: "sk-same", msgs: []models.ChatMessage{sys, userMsg(p)}}.send(h)
+	send := func(prompt string) string {
+		return isoReq{auth: "sk-same", msgs: []models.ChatMessage{sys, userMsg(prompt)}}.send(h).Header().Get("X-Cache")
 	}
 
-	if calls != 1 {
-		t.Errorf("expected 1 upstream call (rest served from cache), got %d", calls)
+	send("Explain how database indexing works in detail")
+	if got := send("explain how database indexing works in detail?"); got != "HIT" {
+		t.Errorf("the same prompt in different case and punctuation should be served from cache, got X-Cache=%q", got)
+	}
+	if got := send("Explain in detail how database indexing works"); got == "HIT" {
+		t.Errorf("a reordered prompt must reach the upstream, got X-Cache=%q", got)
+	}
+	// Same words, opposite meaning: the old similarity match served the first answer for this.
+	send("Convert a string to an integer in Python")
+	if got := send("Convert an integer to a string in Python"); got == "HIT" {
+		t.Errorf("a prompt with swapped words must reach the upstream, got X-Cache=%q", got)
+	}
+	if calls != 4 {
+		t.Errorf("expected 4 upstream calls, got %d", calls)
 	}
 }
 

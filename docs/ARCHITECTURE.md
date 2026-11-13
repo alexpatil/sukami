@@ -34,7 +34,7 @@ Sukami is a high-performance, zero-dependency AI Token Optimization Gateway and 
           Unconditionally preserves code blocks & markdown.
                       │
                       ▼
-        [ Semantic Vector Cache Check ] ───(Hit > 0.85 Sim)────────► [ HTTP 200 Instant Cache ]
+        [ Response Cache Check ] ───(Exact match)────────────────────► [ HTTP 200 Instant Cache ]
                       │ (Miss)
                       ▼
          [ Output Density Injection ]
@@ -69,7 +69,7 @@ Sukami is a high-performance, zero-dependency AI Token Optimization Gateway and 
 | Package | Responsibility | Concurrency & Storage Model |
 | :--- | :--- | :--- |
 | `pkg/auth` | Optional multi-tenant tenant management (`X-Sukami-Key`), rate limiting, and usage tracking | In-memory thread-safe `sync.RWMutex` store with per-minute rate limiter |
-| `pkg/cache` | Multi-tier response caching: SHA-256 hash + Vector Cosine similarity with collision guards | In-memory bounded cache (10,000 max entries) with TTL & capacity eviction |
+| `pkg/cache` | Response caching: SHA-256 exact match. The word-count similarity code remains in the package for evaluation but the proxy does not call it | In-memory bounded cache (10,000 max entries) with TTL & capacity eviction |
 | `pkg/config` | Standard library environment loader (`.env`) | Pure Go key-value parser with comment and quote handling |
 | `pkg/metrics` | Real-time Prometheus metrics exporter (`/metrics`), live dynamic pricing sync, request recorder | Lock-free / mutex-protected ring buffer (sliding window of recent requests) |
 | `pkg/models` | OpenAI-compatible request, response, and SSE stream data types | Standard Go structs with JSON tags |

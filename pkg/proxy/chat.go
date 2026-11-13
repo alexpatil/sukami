@@ -101,10 +101,8 @@ func (h *Handler) HandleChatCompletions(w http.ResponseWriter, r *http.Request) 
 		h.respondFromCache(w, r, cachedBytes, chatReq, comp, reqID, userPrompt, 1.0, start)
 		return
 	}
-	if cachedBytes, hit, sim := h.cache.GetSemantic(cacheModel, userPrompt, 0.85); hit {
-		h.respondFromCache(w, r, cachedBytes, chatReq, comp, reqID, userPrompt, sim, start)
-		return
-	}
+	// Only exact repeats are served. The lexical similarity match cannot tell reordered prompts apart
+	// (docs/BENCHMARKS.md), so the request path does not use it.
 
 	if density {
 		optMessages, _ := optimizer.ApplyOutputOptimization(comp.Messages)
