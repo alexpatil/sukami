@@ -83,7 +83,9 @@ func TestCloudSecurity_ZeroCacheLeak_RejectBeforeCache(t *testing.T) {
 	}
 	body, _ := json.Marshal(chatReq)
 	newReq := func() *http.Request {
-		return httptest.NewRequest(http.MethodPost, "/v1/chat/completions", bytes.NewReader(body))
+		req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", bytes.NewReader(body))
+		req.Header.Set("X-Sukami-Similarity", "true") // the entry below is seeded on the similarity path
+		return req
 	}
 
 	// Seed the entry under the scope an unauthenticated caller would resolve to.

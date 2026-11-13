@@ -12,7 +12,7 @@
 
 **The transparent token optimization data-plane between your applications and upstream LLMs.**
 <br />
-Sukami is an open-source AI infrastructure proxy in pure Go. It prunes prompt bloat, serves repeated queries from an in-memory semantic cache, and dynamically routes simple queries to economy models.
+Sukami is an open-source AI infrastructure proxy in pure Go. It prunes prompt bloat, serves repeated queries from an in-memory cache, and dynamically routes simple queries to economy models.
 
 <br />
 
@@ -28,7 +28,7 @@ Sukami is an open-source AI infrastructure proxy in pure Go. It prunes prompt bl
 
 - **Zero dependencies**: Built exclusively with the Go standard library, packaged as a single static binary.
 - **Drop-in integration**: Works with official OpenAI SDKs by changing only the `base_url`.
-- **In-memory cache**: Cosine vector similarity with semantic collision guards.
+- **In-memory cache**: Exact-match response cache. Lexical similarity matching is opt-in.
 - **Low overhead**: Pruning, cache lookup, and routing run in-process with no extra network hop.
 - **Smart routing**: Opt-in routing of simple prompts to a cheaper model on the same upstream. Complex prompts keep the model you requested.
 
@@ -123,7 +123,7 @@ curl http://localhost:8080/v1/chat/completions \
 ```
 
 Responses are standard OpenAI JSON objects with added observability headers:
-- `X-Cache`: `HIT` (served from semantic cache) or `MISS` (forwarded to upstream).
+- `X-Cache`: `HIT` (served from the cache) or `MISS` (forwarded to upstream).
 - `X-Sukami-Pruned-Tokens`: Number of redundant tokens pruned before forwarding.
 - `X-Sukami-Retries`: Count of transient upstream retry attempts executed (`0`, `1`, `2`).
 
@@ -146,7 +146,7 @@ Client Request (OpenAI SDK / cURL)
              │
              ▼
 ┌─────────────────────────────┐
-│    Semantic Vector Cache    │  Cosine similarity (>0.85) + collision guards
+│       Response Cache        │  Exact match; lexical similarity is opt-in
 └────────────┬────────────────┘
              │ miss
              ▼
@@ -167,7 +167,8 @@ For complete technical specifications, see [docs/ARCHITECTURE.md](docs/ARCHITECT
 ## Features
 
 - **Prompt pruning**: Strips conversational filler and redundant whitespace. Code blocks and markdown indentation are unconditionally preserved.
-- **In-memory semantic cache**: Caches responses using vector similarity matching (>0.85). Built-in entity and opposites guards prevent false matches between distinct concepts (such as `Docker` vs `Kubernetes` or `encrypt` vs `decrypt`).
+- **In-memory cache**: Serves a stored response when the same request is sent again. Matching ignores letter case and trailing punctuation.
+- **Similarity matching (opt-in)**: With `ENABLE_SIMILARITY_CACHE=true` or the header `X-Sukami-Similarity: true`, a prompt that shares most of its words with a stored prompt is also served from the cache (word-count cosine above 0.85). It is off by default because it compares which words appear, not their order: on the PAWS test set it served the stored answer for 97.54% of pairs labelled as different in meaning. See [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
 - **Automatic retries on transient errors**: Transparently retries transient rate limits (`HTTP 429`) and server overloads (`502`, `503`, `504`) with jittered exponential backoff and `Retry-After` header respect. Configurable via `UPSTREAM_MAX_RETRIES` or per-request with `X-Sukami-Max-Retries`.
 - **Smart model routing (opt-in)**: Evaluates prompt complexity in-process without external API calls. Routes simple queries to economy models while preserving flagship models for complex code and multi-step reasoning.
 - **Cloud security mode**: Set `SUKAMI_API_KEY` to protect the proxy on public networks. Rejects unauthenticated callers before cache access to prevent unauthorized cache inspection.
@@ -196,6 +197,7 @@ SUKAMI_API_KEY=                         # Master gateway key. Rejects unauthenti
 # Dynamic Optimization (can also be toggled per-request via headers)
 ENABLE_SMART_ROUTING=false              # Route simple queries to economy models (header: X-Sukami-Smart-Route: true)
 ENABLE_OUTPUT_DENSITY=false             # Inject anti-fluff instructions into prompts (header: X-Sukami-Density: true)
+ENABLE_SIMILARITY_CACHE=false           # Also serve cached answers for lexically similar prompts (header: X-Sukami-Similarity: true)
 
 # Resilience & Retries (optional)
 UPSTREAM_MAX_RETRIES=2                  # Max retries for transient 429/502/503/504 errors (header: X-Sukami-Max-Retries)
@@ -230,8 +232,8 @@ Standard Prometheus metrics are available at `GET /metrics`:
 | Metric Name | Type | Description |
 | :--- | :--- | :--- |
 | `sukami_requests_total` | Counter | Total proxied requests processed |
-| `sukami_cache_hits_total` | Counter | Requests served directly from the semantic cache |
-| `sukami_cache_hit_ratio` | Gauge | Real-time semantic cache hit ratio (0.0 to 1.0) |
+| `sukami_cache_hits_total` | Counter | Requests served directly from the cache |
+| `sukami_cache_hit_ratio` | Gauge | Real-time cache hit ratio (0.0 to 1.0) |
 | `sukami_tokens_saved_total` | Counter | Cumulative input tokens eliminated by pruning |
 | `sukami_cost_saved_usd_total` | Counter | Total USD saved computed from live model pricing |
 

@@ -101,9 +101,12 @@ func (h *Handler) HandleChatCompletions(w http.ResponseWriter, r *http.Request) 
 		h.respondFromCache(w, r, cachedBytes, chatReq, comp, reqID, userPrompt, 1.0, start)
 		return
 	}
-	if cachedBytes, hit, sim := h.cache.GetSemantic(cacheModel, userPrompt, 0.85); hit {
-		h.respondFromCache(w, r, cachedBytes, chatReq, comp, reqID, userPrompt, sim, start)
-		return
+	// Lexical similarity cannot tell reordered prompts apart (docs/BENCHMARKS.md), so it is opt-in.
+	if r.Header.Get("X-Sukami-Similarity") == "true" || os.Getenv("ENABLE_SIMILARITY_CACHE") == "true" {
+		if cachedBytes, hit, sim := h.cache.GetSemantic(cacheModel, userPrompt, 0.85); hit {
+			h.respondFromCache(w, r, cachedBytes, chatReq, comp, reqID, userPrompt, sim, start)
+			return
+		}
 	}
 
 	if density {
