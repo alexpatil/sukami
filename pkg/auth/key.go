@@ -36,24 +36,11 @@ type MemoryKeyStore struct {
 	keys map[string]*APIKey
 }
 
-// NewMemoryKeyStore initializes the store with a default master demo key.
+// NewMemoryKeyStore returns an empty store; keys exist only once CreateKey issues them.
 func NewMemoryKeyStore() *MemoryKeyStore {
-	store := &MemoryKeyStore{
+	return &MemoryKeyStore{
 		keys: make(map[string]*APIKey),
 	}
-
-	// Seed default master test key with unlimited open-source access
-	store.keys["sk-sukami-demo-12345"] = &APIKey{
-		Key:             "sk-sukami-demo-12345",
-		Name:            "Default Gateway Key",
-		Tier:            "standard",
-		RateLimitPerMin: 60,
-		CreatedAt:       time.Now(),
-		TokensSaved:     8430,
-		TotalRequests:   12,
-	}
-
-	return store
 }
 
 // Validate checks whether the provided API key exists.
