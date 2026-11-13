@@ -161,3 +161,39 @@ func TestCache_StreamCapturedResponseReportsUpstreamModel(t *testing.T) {
 		t.Errorf("cached response model = %q, want the upstream-reported %q", resp.Model, streamedModel)
 	}
 }
+
+func TestCache_KeyIncludesRequestParams(t *testing.T) {
+	var calls int64
+	up := echoUpstream(&calls)
+	defer up.Close()
+	h, _ := createTestStreamHandler(up.URL)
+
+	post := func(extra string) string {
+		body := `{"model":"gpt-4o","messages":[{"role":"user","content":"Describe the invoice in this request"}]` + extra + `}`
+		req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", strings.NewReader(body))
+		req.Header.Set("Authorization", "Bearer sk-same")
+		rec := httptest.NewRecorder()
+		h.HandleChatCompletions(rec, req)
+		return rec.Header().Get("X-Cache")
+	}
+
+	post("")
+	for _, extra := range []string{
+		`,"response_format":{"type":"json_object"}`,
+		`,"max_tokens":5`,
+		`,"temperature":0`,
+		`,"tools":[{"type":"function","function":{"name":"lookup"}}]`,
+	} {
+		if got := post(extra); got != "MISS" {
+			t.Errorf("request with %s must not reuse the plain request's entry, got X-Cache=%q", extra, got)
+		}
+	}
+
+	// Delivery options do not change the completion, so they still share the entry.
+	if got := post(`,"user":"u-1"`); got != "HIT" {
+		t.Errorf("request differing only in user must be served from cache, got X-Cache=%q", got)
+	}
+	if got := post(`,"max_tokens":5`); got != "HIT" {
+		t.Errorf("repeating identical parameters must be served from cache, got X-Cache=%q", got)
+	}
+}
