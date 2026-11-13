@@ -1,6 +1,6 @@
 # Benchmarks
 
-This page reports only what `cmd/sukami-bench` measured in a recorded run. It makes no projections.
+This page reports only what `cmd/sukami-bench` and `cmd/sukami-eval` measured in recorded runs. It makes no projections.
 
 ## Results
 
@@ -24,6 +24,37 @@ What this run shows:
 - `openai/gpt-oss-120b` is a reasoning model, so its completion token counts include reasoning tokens.
 
 Earlier versions of this page listed token and latency figures, percentage ranges, and dollar projections. They were removed because the old runner never sent a request through the proxy, and no record of the runs behind them exists in the repository.
+
+## Cache accuracy
+
+`cmd/sukami-eval` runs the real cache over a file of labelled sentence pairs and counts how often a prompt is served the answer stored for a different prompt. It needs no upstream and no API key.
+
+Recorded on 2026-11-13, Windows 11, similarity threshold 0.85 (the value the proxy uses).
+
+Data: PAWS, labelled final test split, 8,000 pairs (3,536 same meaning, 4,464 different meaning). Source: Google, <https://github.com/google-research-datasets/paws>.
+
+| Setup | Different-meaning pairs served the stored answer | Same-meaning pairs served the stored answer | Served another pair's answer (unlabelled) | Same text (exact match) | Median similarity lookup |
+| :--- | ---: | ---: | ---: | ---: | ---: |
+| One stored prompt per lookup | 4354 of 4464 (97.54%) | 3492 of 3536 (98.76%) | 0 | 14 | 0µs |
+| All stored prompts in one cache | 444 of 4464 (9.95%) | 424 of 3536 (11.99%) | 1736 | 5388 | 262.9ms |
+
+What this run shows:
+
+- With one candidate per lookup, the cache served the stored answer for 97.54% of the pairs labelled as different in meaning. It hits same-meaning and different-meaning pairs at almost the same rate, so on this data the similarity match does not tell them apart.
+- The cause is the matcher's design. It compares which words appear, not their order, and PAWS pairs are built by swapping words: "the flight from Paris to London" and "the flight from London to Paris" produce the same word counts.
+- PAWS is a hard case chosen for that reason. It is not a sample of real prompts, and this run does not say how often real traffic contains such pairs. It does say that when two prompts differ mainly in word order, the cache will usually treat them as the same.
+- With every stored prompt in one cache, a similarity lookup that finds no exact match took a median of 262.9ms. The cache held 4,947 distinct prompts; the default capacity is 10,000. Each lookup compares the prompt against every stored entry in its namespace.
+- In the second row most lookups (5,388) were exact text matches, because PAWS reuses sentences across pairs; those are correct hits and are not similarity decisions. The 1,736 lookups served another pair's text have no label in the data, so they are reported as a count and not judged. Counts in this row vary slightly between runs when several stored prompts tie on similarity.
+- `0µs` means below the resolution of the Windows system clock.
+
+To run it, supply a tab-separated file with a header row and the columns `id`, `sentence1`, `sentence2`, `label` (1 = same meaning):
+
+```bash
+go run ./cmd/sukami-eval -pairs path/to/pairs.tsv            # all pairs
+go run ./cmd/sukami-eval -pairs path/to/pairs.tsv -limit 500 # a quick pass
+```
+
+The second setup compares every lookup against every stored prompt, so its run time grows with the square of the pair count (about five minutes for 8,000 pairs on the machine above). No data set is bundled with the repository.
 
 ## What the runner measures
 
