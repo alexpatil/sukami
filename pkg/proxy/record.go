@@ -51,6 +51,7 @@ func (h *Handler) recordMissMetric(id string, chatReq models.ChatCompletionReque
 			record.SavingsPercent = (float64(record.SavedTokens) / float64(record.OriginalTokens)) * 100.0
 		}
 
+		record.Breakdown.ScaleInputTo(int64(usage.PromptTokens))
 		record.Breakdown.UpstreamPromptTokens = int64(usage.PromptTokens)
 		record.Breakdown.UpstreamCompletionTokens = int64(usage.CompletionTokens)
 		if usage.PromptTokensDetails != nil {

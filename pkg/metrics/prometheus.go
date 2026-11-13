@@ -54,7 +54,7 @@ func (t *Tracker) FormatPrometheus() string {
 	sb.WriteString("# TYPE sukami_cost_saved_usd_total counter\n")
 	fmt.Fprintf(&sb, "sukami_cost_saved_usd_total %.6f\n\n", s.EstimatedCostSaved)
 
-	sb.WriteString("# HELP sukami_tokens_by_part_total Tokens of forwarded requests by part. system, history, prompt and tools are proxy estimates; upstream_* are provider-reported.\n")
+	sb.WriteString("# HELP sukami_tokens_by_part_total Tokens of forwarded requests by part. system, history, prompt and tools split the provider-reported prompt count in proportions the proxy estimates; upstream_* are provider-reported.\n")
 	sb.WriteString("# TYPE sukami_tokens_by_part_total counter\n")
 	for _, part := range s.TokenBreakdown.parts() {
 		fmt.Fprintf(&sb, "sukami_tokens_by_part_total{part=%q} %d\n", part.Label, part.Value)
