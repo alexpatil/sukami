@@ -52,17 +52,25 @@ func TestRecord_BreaksDownWhereTokensWent(t *testing.T) {
 			}}.send(h)
 
 			got := tracker.GetSummary().TokenBreakdown
+			// The estimated parts are scaled to the 900 prompt tokens the upstream billed.
 			want := metrics.TokenBreakdown{
-				SystemTokens:             int64(optimizer.CountExactTokens("gpt-4o", system)),
-				HistoryTokens:            int64(optimizer.CountExactTokens("gpt-4o", earlier) + optimizer.CountExactTokens("gpt-4o", reply)),
-				PromptTokens:             int64(optimizer.CountExactTokens("gpt-4o", last)),
-				UpstreamPromptTokens:     900,
-				UpstreamCachedTokens:     768,
-				UpstreamCompletionTokens: 120,
-				UpstreamReasoningTokens:  40,
+				SystemTokens:  int64(optimizer.CountExactTokens("gpt-4o", system)),
+				HistoryTokens: int64(optimizer.CountExactTokens("gpt-4o", earlier) + optimizer.CountExactTokens("gpt-4o", reply)),
+				PromptTokens:  int64(optimizer.CountExactTokens("gpt-4o", last)),
 			}
+			want.ScaleInputTo(900)
+			want.UpstreamPromptTokens = 900
+			want.UpstreamCachedTokens = 768
+			want.UpstreamCompletionTokens = 120
+			want.UpstreamReasoningTokens = 40
 			if got != want {
 				t.Errorf("breakdown = %+v\nwant        %+v", got, want)
+			}
+			if sum := got.SystemTokens + got.HistoryTokens + got.PromptTokens + got.ToolTokens; sum != 900 {
+				t.Errorf("input parts must add up to the upstream's 900 prompt tokens, got %d", sum)
+			}
+			if got.HistoryTokens <= got.PromptTokens {
+				t.Errorf("two earlier messages should outweigh the short last prompt: %+v", got)
 			}
 		})
 	}
