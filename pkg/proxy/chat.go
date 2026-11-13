@@ -79,6 +79,8 @@ func (h *Handler) HandleChatCompletions(w http.ResponseWriter, r *http.Request) 
 
 	// Optimize input messages using model-specific token rules
 	comp := optimizer.OptimizeMessagesForModel(chatReq.Model, chatReq.Messages)
+	// Forward what the savings are counted for, so reported savings match what the upstream bills.
+	chatReq.Messages = comp.Messages
 	if clientKey != "" {
 		h.authStore.RecordTokenUsage(clientKey, comp.OptimizedTokens, comp.SavedTokens)
 	}

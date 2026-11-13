@@ -22,17 +22,61 @@ func TestPruneText_CodeIntegrity(t *testing.T) {
 	}
 }
 
-// TestPruneText_WhitespaceCollapsing checks removal of empty newlines and spaces.
-func TestPruneText_WhitespaceCollapsing(t *testing.T) {
-	input := "Explain    concurrency     in   Go.\n\n\n\n\nHow    does it work?"
-	pruned := PruneText(input)
-
-	if strings.Contains(pruned, "    ") {
-		t.Errorf("Multiple spaces were not collapsed: %q", pruned)
+func TestPruneText_CollapsesBlankLinesAndTrailingSpace(t *testing.T) {
+	pruned := PruneText("Explain concurrency in Go.   \n\n\n\n\nHow does it work?\t\n\n")
+	want := "Explain concurrency in Go.\n\nHow does it work?"
+	if pruned != want {
+		t.Errorf("got %q, want %q", pruned, want)
 	}
+}
 
-	if strings.Contains(pruned, "\n\n\n") {
-		t.Errorf("Excess newlines were not collapsed: %q", pruned)
+// Indentation and spacing carry meaning in code, YAML and tables pasted without a fence.
+func TestPruneText_KeepsIndentationAndInnerSpacing(t *testing.T) {
+	for _, input := range []string{
+		"def f(x):\n    if x:\n        return 1\n    return 2",
+		"services:\n  web:\n    image: nginx",
+		"| a   | b   |\n| --- | --- |",
+		"    indented first line\nsecond line",
+		"x = \"two  spaces\"",
+	} {
+		if pruned := PruneText(input); pruned != input {
+			t.Errorf("text was changed:\n in: %q\nout: %q", input, pruned)
+		}
+	}
+}
+
+// A polite prefix is removed only at the very start of the prompt, never inside it,
+// because text further in may be content the user wants processed as written.
+func TestPruneText_StripsFillerOnlyAtPromptStart(t *testing.T) {
+	cases := map[string]string{
+		"Please summarise this report.":                    "Summarise this report.",
+		"Could you please list the steps?":                 "List the steps?",
+		"Translate to French:\nPlease wait here.":          "Translate to French:\nPlease wait here.",
+		"Reply with the sentence: Hello. Please sit down.": "Reply with the sentence: Hello. Please sit down.",
+	}
+	for input, want := range cases {
+		if pruned := PruneText(input); pruned != want {
+			t.Errorf("PruneText(%q) = %q, want %q", input, pruned, want)
+		}
+	}
+}
+
+func TestOptimizeMessages_PrunesOnlyUserMessages(t *testing.T) {
+	msgs := []models.ChatMessage{
+		{Role: "system", Content: "Please answer briefly.   "},
+		{Role: "user", Content: "Please explain channels."},
+		{Role: "assistant", Content: "Please note:   channels are typed.   "},
+		{Role: "tool", Content: "please   keep\n\n\n\nthis"},
+	}
+	got := OptimizeMessages(msgs).Messages
+
+	if got[1].Content != "Explain channels." {
+		t.Errorf("user message was not pruned: %q", got[1].Content)
+	}
+	for _, i := range []int{0, 2, 3} {
+		if got[i].Content != msgs[i].Content {
+			t.Errorf("%s message was changed: %q", msgs[i].Role, got[i].Content)
+		}
 	}
 }
 
