@@ -32,16 +32,30 @@ type sample struct {
 }
 
 func call(client *http.Client, target, apiKey, model string, headers map[string]string) (sample, error) {
-	body, err := json.Marshal(models.ChatCompletionRequest{
-		Model:    model,
-		Messages: []models.ChatMessage{{Role: "user", Content: benchPrompt}},
-	})
+	request := models.ChatCompletionRequest{Model: model, Messages: []models.ChatMessage{{Role: "user", Content: benchPrompt}}}
+	parsed, latency, cacheHeader, err := postChat(client, target, apiKey, request, headers)
 	if err != nil {
 		return sample{}, err
 	}
+	return sample{
+		promptTokens:     parsed.Usage.PromptTokens,
+		completionTokens: parsed.Usage.CompletionTokens,
+		latency:          latency,
+		finish:           parsed.Choices[0].FinishReason,
+		cache:            cacheHeader,
+	}, nil
+}
+
+// postChat sends one chat completion request and returns the parsed response, its latency and the X-Cache header.
+func postChat(client *http.Client, target, apiKey string, request models.ChatCompletionRequest, headers map[string]string) (models.ChatCompletionResponse, time.Duration, string, error) {
+	var parsed models.ChatCompletionResponse
+	body, err := json.Marshal(request)
+	if err != nil {
+		return parsed, 0, "", err
+	}
 	req, err := http.NewRequest(http.MethodPost, target, bytes.NewReader(body))
 	if err != nil {
-		return sample{}, err
+		return parsed, 0, "", err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+apiKey)
@@ -52,32 +66,24 @@ func call(client *http.Client, target, apiKey, model string, headers map[string]
 	start := time.Now()
 	resp, err := client.Do(req)
 	if err != nil {
-		return sample{}, err
+		return parsed, 0, "", err
 	}
 	defer resp.Body.Close()
 	raw, err := io.ReadAll(resp.Body)
 	latency := time.Since(start)
 	if err != nil {
-		return sample{}, err
+		return parsed, 0, "", err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return sample{}, fmt.Errorf("HTTP %d: %s", resp.StatusCode, raw)
+		return parsed, 0, "", fmt.Errorf("HTTP %d: %s", resp.StatusCode, raw)
 	}
-
-	var parsed models.ChatCompletionResponse
 	if err := json.Unmarshal(raw, &parsed); err != nil {
-		return sample{}, fmt.Errorf("response is not a chat completion: %w", err)
+		return parsed, 0, "", fmt.Errorf("response is not a chat completion: %w", err)
 	}
 	if len(parsed.Choices) == 0 || parsed.Usage.CompletionTokens == 0 {
-		return sample{}, fmt.Errorf("response carries no choice or no usage block: %s", raw)
+		return parsed, 0, "", fmt.Errorf("response carries no choice or no usage block: %s", raw)
 	}
-	return sample{
-		promptTokens:     parsed.Usage.PromptTokens,
-		completionTokens: parsed.Usage.CompletionTokens,
-		latency:          latency,
-		finish:           parsed.Choices[0].FinishReason,
-		cache:            resp.Header.Get("X-Cache"),
-	}, nil
+	return parsed, latency, resp.Header.Get("X-Cache"), nil
 }
 
 // spread formats the median of the values with their range.

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"net"
 	"net/http"
@@ -61,18 +62,25 @@ func loadConfig() (benchConfig, error) {
 
 // startProxy serves the real chat completions handler on a loopback port with an empty cache.
 func startProxy(upstreamURL string) (url string, stop func(), err error) {
+	url, _, stop, err = startTrackedProxy(upstreamURL)
+	return url, stop, err
+}
+
+// startTrackedProxy is startProxy that also returns the proxy's metrics tracker.
+func startTrackedProxy(upstreamURL string) (url string, tracker *metrics.Tracker, stop func(), err error) {
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
-		return "", nil, err
+		return "", nil, nil, err
 	}
-	handler := proxy.NewHandler(cache.NewMemoryCache(time.Hour), metrics.NewTracker(10), auth.NewMemoryKeyStore(), auth.NewRateLimiter(), upstreamURL)
+	tracker = metrics.NewTracker(10)
+	handler := proxy.NewHandler(cache.NewMemoryCache(time.Hour), tracker, auth.NewMemoryKeyStore(), auth.NewRateLimiter(), upstreamURL)
 	// A retried upstream call would be counted as proxy latency, so a 429 must fail the run.
 	handler.SetMaxRetries(0)
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /v1/chat/completions", handler.HandleChatCompletions)
 	server := &http.Server{Handler: mux, ReadHeaderTimeout: 5 * time.Second}
 	go func() { _ = server.Serve(listener) }()
-	return "http://" + listener.Addr().String() + "/v1/chat/completions", func() { _ = server.Close() }, nil
+	return "http://" + listener.Addr().String() + "/v1/chat/completions", tracker, func() { _ = server.Close() }, nil
 }
 
 // runOnce measures the four cases once. Each proxied case starts from an empty cache.
@@ -118,6 +126,9 @@ func runOnce(cfg benchConfig, client *http.Client) (map[string]sample, error) {
 }
 
 func main() {
+	scenario := flag.String("scenario", "single", "what to measure: single (one prompt) or chat (a multi-turn conversation)")
+	flag.Parse()
+
 	_ = config.LoadEnv(".env")
 	cfg, err := loadConfig()
 	if err != nil {
@@ -126,6 +137,19 @@ func main() {
 	}
 
 	client := &http.Client{Timeout: 180 * time.Second}
+	switch *scenario {
+	case "single":
+	case "chat":
+		if err := mainChat(cfg, client); err != nil {
+			fmt.Fprintln(os.Stderr, "Error:", err)
+			os.Exit(1)
+		}
+		return
+	default:
+		fmt.Fprintf(os.Stderr, "Error: unknown scenario %q (use single or chat)\n", *scenario)
+		os.Exit(2)
+	}
+
 	results := map[string][]sample{}
 	for i := 1; i <= cfg.runs; i++ {
 		fmt.Fprintf(os.Stderr, "run %d of %d\n", i, cfg.runs)
