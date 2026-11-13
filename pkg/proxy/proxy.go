@@ -115,6 +115,24 @@ func extractUserPrompt(messages []models.ChatMessage) string {
 	return ""
 }
 
+// buildContextFingerprint hashes every message except the last user message.
+func buildContextFingerprint(messages []models.ChatMessage) string {
+	last := -1
+	for i := len(messages) - 1; i >= 0; i-- {
+		if messages[i].Role == "user" {
+			last = i
+			break
+		}
+	}
+	ctx := make([]models.ChatMessage, 0, len(messages))
+	for i, m := range messages {
+		if i != last {
+			ctx = append(ctx, m)
+		}
+	}
+	return shortHash(buildPromptFingerprint(ctx))
+}
+
 func buildPromptFingerprint(messages []models.ChatMessage) string {
 	var sb strings.Builder
 	for _, m := range messages {

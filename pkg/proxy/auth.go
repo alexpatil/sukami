@@ -1,6 +1,8 @@
 package proxy
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"net/http"
 	"os"
 	"strings"
@@ -98,10 +100,24 @@ func (h *Handler) resolveUpstreamAuth(r *http.Request) string {
 	return ""
 }
 
-// scopedCacheModel returns a tenant-scoped model identifier for cache isolation.
-func scopedCacheModel(tenantKey, model string) string {
-	if tenantKey == "" {
-		return "pub|" + model
+// cacheScope partitions the cache so one caller is never served another's response.
+// Keys are hashed so they never sit in cache keys or reach a response body.
+func cacheScope(tenantKey, upstreamAuth, upstreamTarget string) string {
+	if tenantKey != "" {
+		return "t:" + shortHash(tenantKey+"\x00"+upstreamTarget)
 	}
-	return tenantKey + "|" + model
+	// Callers on the gateway's own upstream key share one upstream account, so they share a scope.
+	if env := os.Getenv("UPSTREAM_API_KEY"); env != "" && upstreamAuth == "Bearer "+env {
+		return "gw:" + shortHash(upstreamTarget)
+	}
+	return "u:" + shortHash(upstreamAuth+"\x00"+upstreamTarget)
+}
+
+func scopedCacheModel(scope, model string) string {
+	return scope + "|" + model
+}
+
+func shortHash(s string) string {
+	sum := sha256.Sum256([]byte(s))
+	return hex.EncodeToString(sum[:12])
 }

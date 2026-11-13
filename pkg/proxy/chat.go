@@ -85,13 +85,19 @@ func (h *Handler) HandleChatCompletions(w http.ResponseWriter, r *http.Request) 
 		h.authStore.RecordTokenUsage(clientKey, comp.OptimizedTokens, comp.SavedTokens)
 	}
 
-	// Scope cache by tenant to prevent cross-tenant data leaks (M-6)
-	cacheModel := scopedCacheModel(clientKey, chatReq.Model)
+	density := r.Header.Get("X-Sukami-Density") == "true" || os.Getenv("ENABLE_OUTPUT_DENSITY") == "true"
 
-	// Build deterministic hash key for semantic cache
-	cacheKey := cache.ComputeHash(cacheModel, buildPromptFingerprint(comp.Messages))
+	// Dense and normal answers differ, so output mode is part of the scope.
+	scope := cacheScope(clientKey, authHeader, h.resolveUpstreamTarget(r))
+	if density {
+		scope += "|dense"
+	}
+	exactModel := scopedCacheModel(scope, chatReq.Model)
+	cacheKey := cache.ComputeHash(exactModel, buildPromptFingerprint(comp.Messages))
 
-	// 4. Check Cache (Exact Conversation Hash or Semantic Cosine Similarity > 0.85)
+	// Similarity may only match requests that share system prompt and history.
+	cacheModel := exactModel + "|ctx:" + buildContextFingerprint(comp.Messages)
+
 	if cachedBytes, found := h.cache.Get(cacheKey); found {
 		h.respondFromCache(w, r, cachedBytes, chatReq, comp, reqID, userPrompt, 1.0, start)
 		return
@@ -101,8 +107,7 @@ func (h *Handler) HandleChatCompletions(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// 5. Cache Miss: apply output density optimization if opted-in
-	if r.Header.Get("X-Sukami-Density") == "true" || os.Getenv("ENABLE_OUTPUT_DENSITY") == "true" {
+	if density {
 		optMessages, _ := optimizer.ApplyOutputOptimization(comp.Messages)
 		chatReq.Messages = optMessages
 	}
