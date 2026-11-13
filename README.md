@@ -216,7 +216,8 @@ UPSTREAM_URL=https://your-provider.example/v1
 UPSTREAM_API_KEY=your-api-key
 BENCH_MODEL=the-model-to-test
 
-go run ./cmd/sukami-bench
+go run ./cmd/sukami-bench                  # one prompt
+go run ./cmd/sukami-bench -scenario chat   # a five-turn conversation
 ```
 
 Recorded results and how to read them are in [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
