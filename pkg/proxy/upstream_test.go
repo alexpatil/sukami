@@ -1,8 +1,10 @@
 package proxy
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sukami/pkg/auth"
 	"sukami/pkg/cache"
 	"sukami/pkg/metrics"
@@ -41,3 +43,24 @@ func TestResolveUpstreamTarget(t *testing.T) {
 	}
 }
 
+func TestForwardUpstream_KeepsUnmodeledRequestFields(t *testing.T) {
+	var received map[string]json.RawMessage
+	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewDecoder(r.Body).Decode(&received)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":"x","choices":[]}`))
+	}))
+	defer up.Close()
+	h := NewHandler(cache.NewMemoryCache(time.Hour), metrics.NewTracker(10), auth.NewMemoryKeyStore(), auth.NewRateLimiter(), up.URL)
+
+	body := `{"model":"m","messages":[{"role":"user","content":"hello there stranger"}],"max_completion_tokens":50,"reasoning_effort":"low","metadata":{"a":"b"}}`
+	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", strings.NewReader(body))
+	req.Header.Set("Authorization", "Bearer provider-key")
+	h.HandleChatCompletions(httptest.NewRecorder(), req)
+
+	for name, want := range map[string]string{"max_completion_tokens": `50`, "reasoning_effort": `"low"`, "metadata": `{"a":"b"}`} {
+		if string(received[name]) != want {
+			t.Errorf("upstream received %q = %s, want %s", name, received[name], want)
+		}
+	}
+}
