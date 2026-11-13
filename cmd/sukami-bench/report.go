@@ -101,6 +101,9 @@ func renderReport(cfg benchConfig, results map[string][]sample, when time.Time) 
 	}
 	tokens := func(n int) string { return fmt.Sprintf("%d", n) }
 	seconds := func(d time.Duration) string {
+		if d < time.Millisecond {
+			return fmt.Sprintf("%dµs", d.Microseconds())
+		}
 		if d < time.Second {
 			return fmt.Sprintf("%dms", d.Milliseconds())
 		}

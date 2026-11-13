@@ -38,8 +38,11 @@ UPSTREAM_URL=https://your-provider.example/v1
 UPSTREAM_API_KEY=your-api-key
 BENCH_MODEL=the-model-to-test
 BENCH_RUNS=3            # optional, default 3
+BENCH_PAUSE=30s         # optional wait after each upstream call, for rate-limited keys
 
 go run ./cmd/sukami-bench
 ```
 
 One run makes three billed upstream calls (the cache hit is free), so the default makes nine. The report is printed as a Markdown table on stdout.
+
+The benchmark proxy runs with upstream retries turned off, so a rate-limit response fails the run instead of being hidden inside a latency figure. If that happens, set `BENCH_PAUSE`. The pause is not part of any measured latency.

@@ -27,6 +27,7 @@ type benchConfig struct {
 	apiKey      string
 	model       string
 	runs        int
+	pause       time.Duration
 }
 
 func loadConfig() (benchConfig, error) {
@@ -48,6 +49,13 @@ func loadConfig() (benchConfig, error) {
 		}
 		cfg.runs = n
 	}
+	if raw := os.Getenv("BENCH_PAUSE"); raw != "" {
+		d, err := time.ParseDuration(raw)
+		if err != nil || d < 0 {
+			return cfg, fmt.Errorf("BENCH_PAUSE must be a duration such as 30s, got %q", raw)
+		}
+		cfg.pause = d
+	}
 	return cfg, nil
 }
 
@@ -58,6 +66,8 @@ func startProxy(upstreamURL string) (url string, stop func(), err error) {
 		return "", nil, err
 	}
 	handler := proxy.NewHandler(cache.NewMemoryCache(time.Hour), metrics.NewTracker(10), auth.NewMemoryKeyStore(), auth.NewRateLimiter(), upstreamURL)
+	// A retried upstream call would be counted as proxy latency, so a 429 must fail the run.
+	handler.SetMaxRetries(0)
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /v1/chat/completions", handler.HandleChatCompletions)
 	server := &http.Server{Handler: mux, ReadHeaderTimeout: 5 * time.Second}
@@ -77,6 +87,9 @@ func runOnce(cfg benchConfig, client *http.Client) (map[string]sample, error) {
 			return fmt.Errorf("%s: expected X-Cache=%q, got %q", name, wantCache, s.cache)
 		}
 		out[name] = s
+		if wantCache != "HIT" {
+			time.Sleep(cfg.pause) // keeps upstream calls under the provider's rate limit
+		}
 		return nil
 	}
 

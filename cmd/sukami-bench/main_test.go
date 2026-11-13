@@ -55,6 +55,7 @@ func TestRunOnce_MeasuresEveryCaseThroughTheProxy(t *testing.T) {
 func TestRenderReport_ShowsMedianAndRange(t *testing.T) {
 	cfg := benchConfig{upstreamURL: "https://upstream.example/v1", model: "bench-model", runs: 3}
 	results := map[string][]sample{
+		caseCacheHit: {{promptTokens: 100, completionTokens: 200, latency: 450 * time.Microsecond, finish: "stop"}},
 		caseDirect: {
 			{promptTokens: 100, completionTokens: 300, latency: 3 * time.Second, finish: "stop"},
 			{promptTokens: 100, completionTokens: 100, latency: 1 * time.Second, finish: "length"},
@@ -66,6 +67,7 @@ func TestRenderReport_ShowsMedianAndRange(t *testing.T) {
 	for _, want := range []string{
 		"Date: 2026-11-13. Model: `bench-model`. Upstream: `upstream.example`. Runs per case: 3.",
 		"| Direct to upstream | 100 | 200 (100 to 300) | 2.00s (1.00s to 3.00s) | `stop`, `length` |",
+		"| Via Sukami, same request again (cache hit) | 100 | 200 | 450µs | `stop` |",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("report is missing %q:\n%s", want, out)
