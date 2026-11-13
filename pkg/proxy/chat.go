@@ -101,7 +101,7 @@ func (h *Handler) HandleChatCompletions(w http.ResponseWriter, r *http.Request) 
 		h.respondFromCache(w, r, cachedBytes, chatReq, comp, reqID, userPrompt, 1.0, start)
 		return
 	}
-	if cachedBytes, hit, sim := h.cache.GetSemantic(cacheModel, userPrompt, 0.85); hit {
+	if cachedBytes, hit, sim := h.cache.GetSemantic(cacheModel, userPrompt, SimilarityThreshold); hit {
 		h.respondFromCache(w, r, cachedBytes, chatReq, comp, reqID, userPrompt, sim, start)
 		return
 	}

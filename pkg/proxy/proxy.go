@@ -16,6 +16,10 @@ import (
 	"time"
 )
 
+// SimilarityThreshold is the minimum cosine similarity at which a cached response is served for a prompt
+// that is not an exact match. cmd/sukami-eval measures the cache at this value.
+const SimilarityThreshold = 0.85
+
 // Cache defines the contract for caching responses.
 type Cache interface {
 	Get(key string) ([]byte, bool)
