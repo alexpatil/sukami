@@ -30,6 +30,17 @@ func TestKeyStore_CreateAndValidate(t *testing.T) {
 	}
 }
 
+func TestKeyStore_NewStoreHoldsNoKeys(t *testing.T) {
+	store := NewMemoryKeyStore()
+
+	if keys := store.ListKeys(); len(keys) != 0 {
+		t.Fatalf("a new store must hold no keys, got %d", len(keys))
+	}
+	if _, ok := store.Validate("sk-sukami-demo-12345"); ok {
+		t.Errorf("the former seeded key must not validate")
+	}
+}
+
 func TestKeyStore_UsageTracking(t *testing.T) {
 	store := NewMemoryKeyStore()
 
